@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+    <meta name="viewport" content="initial-scale=1, width=device-width" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="./global.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./projects.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas Neue:wght@400&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Italianno&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="main.js"></script>
+    <title>Harshith Mulakala Portfolio</title>
+</head>
+
+<body>
+    <header class="mainheader">
+        <a href="#" class="logo">HM</a>
+
+        <ul class="nav">
+            <li><a href="#About" id="butabout">Overview</a></li>
+            <li><a href="#Projects" id="butprojects">Experience</a></li>
+            <li><a href="#ContactMe" id="butcontact">Contact Me</a></li>
+        </ul>
+
+        <div class="bx bx-menu" id="menu-icon"></div>
+
+
+    </header>
+
+    <div class="allstars">
+        <div id='stars'></div>
+        <div id='stars2'></div>
+        <div id='stars3'></div>
+    </div>
+
+    <section class="home" id="home">
+        <div class="home-text">
+            <h3 id="harshith-mulakala" class="harshith-mulakala">Harshith Mulakala</h3>
+            <h2 class="a-programmer"><span>A </span><span class="typeEffect"></span></h3>
+                <button class="about-me" onClick="document.getElementById('About').scrollIntoView();">OVERVIEW</button>
+                <button class="resumebutton btn-hover">RESUME</button>
+
+        </div>
+
+        <div id="home-img" class="home-img">
+            <img src="./image.png" alt="">
+        </div>
+        <script src="https://unpkg.com/typed.js@2.0.14/dist/typed.umd.js"></script>
+        <script src="text.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/8.4.6/swiper-bundle.min.js"></script>
+    </section>
+
+    <div class="icons">
+        <a href="https://www.linkedin.com/in/harshith-mulakala-ba590823b/"><i class="ri-linkedin-box-line"></i></a>
+        <a href="https://github.com/IReallyDontKnow101"><i class="ri-github-line"></i></a>
+        <a href="https://www.instagram.com/harshithmulakala/"><i class="ri-instagram-line"></i></a>
+    </div>
+
+    <div class="Resume">
+        <iframe src="resume.pdf"></iframe>
+        <button class="closeresume">X</button>
+    </div>
+
+    <div class="About" id="About">
+        <div clas="overview">
+            <h1 class="overviewheadertext">Overview</h1>
+            <p class="overviewtext"> I am a versatile and skilled software developer with a strong foundation in Java
+                and expertise in an array of frameworks and languages including Unity, C#, React/React Native, Flutter,
+                and Javascript. I am not only a fast learner but also thrive in collaborative environments, am quick to
+                adapt into different situations, and love problem solving. Get in touch today!
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" class="jsimg">
+                    <path fill="#F0DB4F"
+                        d="M2 1v125h125v-125h-125zm66.119 106.513c-1.845 3.749-5.367 6.212-9.448 7.401-6.271 1.44-12.269.619-16.731-2.059-2.986-1.832-5.318-4.652-6.901-7.901l9.52-5.83c.083.035.333.487.667 1.071 1.214 2.034 2.261 3.474 4.319 4.485 2.022.69 6.461 1.131 8.175-2.427 1.047-1.81.714-7.628.714-14.065-.001-10.115.046-20.188.046-30.188h11.709c0 11 .06 21.418 0 32.152.025 6.58.596 12.446-2.07 17.361zm48.574-3.308c-4.07 13.922-26.762 14.374-35.83 5.176-1.916-2.165-3.117-3.296-4.26-5.795 4.819-2.772 4.819-2.772 9.508-5.485 2.547 3.915 4.902 6.068 9.139 6.949 5.748.702 11.531-1.273 10.234-7.378-1.333-4.986-11.77-6.199-18.873-11.531-7.211-4.843-8.901-16.611-2.975-23.335 1.975-2.487 5.343-4.343 8.877-5.235l3.688-.477c7.081-.143 11.507 1.727 14.756 5.355.904.916 1.642 1.904 3.022 4.045-3.772 2.404-3.76 2.381-9.163 5.879-1.154-2.486-3.069-4.046-5.093-4.724-3.142-.952-7.104.083-7.926 3.403-.285 1.023-.226 1.975.227 3.665 1.273 2.903 5.545 4.165 9.377 5.926 11.031 4.474 14.756 9.271 15.672 14.981.882 4.916-.213 8.105-.38 8.581z">
+                    </path>
+                </svg>
+                <div class="textBox">
+                    <p class="text head">Javascript</p>
+                    <span>Programming Language</span>
+                </div>
+            </div>
+            <div class="card">
+                <svg xmlns="http://www.w3.org/2000/svg" class="jsimg" width="1850" height="2500"
+                    preserveAspectRatio="xMinYMin meet" viewBox="0 0 256 346">
+                    <path fill="#5382A1"
+                        d="M82.554 267.473s-13.198 7.675 9.393 10.272c27.369 3.122 41.356 2.675 71.517-3.034 0 0 7.93 4.972 19.003 9.279-67.611 28.977-153.019-1.679-99.913-16.517M74.292 229.659s-14.803 10.958 7.805 13.296c29.236 3.016 52.324 3.263 92.276-4.43 0 0 5.526 5.602 14.215 8.666-81.747 23.904-172.798 1.885-114.296-17.532">
+                    </path>
+                    <path fill="#E76F00"
+                        d="M143.942 165.515c16.66 19.18-4.377 36.44-4.377 36.44s42.301-21.837 22.874-49.183c-18.144-25.5-32.059-38.172 43.268-81.858 0 0-118.238 29.53-61.765 94.6">
+                    </path>
+                    <path fill="#5382A1"
+                        d="M233.364 295.442s9.767 8.047-10.757 14.273c-39.026 11.823-162.432 15.393-196.714.471-12.323-5.36 10.787-12.8 18.056-14.362 7.581-1.644 11.914-1.337 11.914-1.337-13.705-9.655-88.583 18.957-38.034 27.15 137.853 22.356 251.292-10.066 215.535-26.195M88.9 190.48s-62.771 14.91-22.228 20.323c17.118 2.292 51.243 1.774 83.03-.89 25.978-2.19 52.063-6.85 52.063-6.85s-9.16 3.923-15.787 8.448c-63.744 16.765-186.886 8.966-151.435-8.183 29.981-14.492 54.358-12.848 54.358-12.848M201.506 253.422c64.8-33.672 34.839-66.03 13.927-61.67-5.126 1.066-7.411 1.99-7.411 1.99s1.903-2.98 5.537-4.27c41.37-14.545 73.187 42.897-13.355 65.647 0 .001 1.003-.895 1.302-1.697">
+                    </path>
+                    <path fill="#E76F00"
+                        d="M162.439.371s35.887 35.9-34.037 91.101c-56.071 44.282-12.786 69.53-.023 98.377-32.73-29.53-56.75-55.526-40.635-79.72C111.395 74.612 176.918 57.393 162.439.37">
+                    </path>
+                    <path fill="#5382A1"
+                        d="M95.268 344.665c62.199 3.982 157.712-2.209 159.974-31.64 0 0-4.348 11.158-51.404 20.018-53.088 9.99-118.564 8.824-157.399 2.421.001 0 7.95 6.58 48.83 9.201">
+                    </path>
+                </svg>
+                <div class="textBox">
+                    <p class="text head">Java</p>
+                    <span>Programming Language</span>
+                </div>
+            </div>
+            <div class="card">
+                <img class="jsimg" src="https://cdn.cdnlogo.com/logos/c/27/c.svg">
+                <div class="textBox">
+                    <p class="text head">C#</p>
+                    <span>Programming Language</span>
+                </div>
+            </div>
+            <div class="card">
+                <img class="jsimg"
+                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/2300px-React-icon.svg.png">
+                <div class="textBox">
+                    <p class="text head">React</p>
+                    <span>Framework</span>
+                </div>
+            </div>
+            <div class="card">
+                <img class="jsimg"
+                    src="https://camo.githubusercontent.com/67b4157acd8cf062d897adb3828d76b31a2721b18e396cdb52f8745a0f37fdc7/68747470733a2f2f736f6c616e612e756e6974792d73646b2e67672f6c6f676f2e706e67">
+                <div class="textBox">
+                    <p class="text head">Unity</p>
+                    <span>Game Engine</span>
+                </div>
+            </div>
+            <div class="card">
+                <img class="jsimg"
+                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png">
+                <div class="textBox">
+                    <p class="text head">Python</p>
+                    <span>Programming Language</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="Projects" id="Projects">
+        <a class="overviewheadertext projecttext">Projects</a>
+        <div class="swiper ProjectsSlide">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide"><a class="BraveBear"><img
+                            src="data:image/png;base64,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">
+                        <h1 class="ProjectsText BraveBear">BraveBear</h1>
+                    </a>
+                </div>
+                <div class="swiper-slide "><a class="BulletBounce"><img
+                            src="https://img.itch.zone/aW1nLzk2MzA2MDgucG5n/315x250%23c/7ToN2z.png">
+                        <h1 class="ProjectsText BulletBounce">BulletBounce</h1>
+                    </a></div>
+                <div class="swiper-slide"><a class="Cashonomics"><img
+                            src="https://cashonomics.me/images/Cashonomics.png">
+                        <h1 class="ProjectsText Cashonomics"></h1>
+                    </a></div>
+                <div class="swiper-slide"><a class="QBot"><img
+                            src="https://img-cdn.tnwcdn.com/image?fit=1280%2C720&url=https%3A%2F%2Fcdn0.tnwcdn.com%2Fwp-content%2Fblogs.dir%2F1%2Ffiles%2F2021%2F07%2FDiscordhed.jpg&signature=257006462207519026282958af872e5c">
+                        <h1 class="ProjectsText QBot">Q Bot</h1>
+                    </a></div>
+            </div>
+
+            <div class="prev">
+                <svg width="10" height="15" viewBox="0 0 10 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9.2625 13.2375L3.5375 7.5L9.2625 1.7625L7.5 0L0 7.5L7.5 15L9.2625 13.2375Z"
+                        fill="#A99260" />
+                </svg>
+
+            </div>
+            <div class="next">
+                <svg width="10" height="15" viewBox="0 0 10 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M0.737305 13.2375L6.4623 7.5L0.737305 1.7625L2.4998 0L9.9998 7.5L2.4998 15L0.737305 13.2375Z"
+                        fill="#A99260" />
+                </svg>
+
+            </div>
+            <div class="pagination"></div>
+        </div>
+
+        <div class="swiper WorkSlide">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide"><a class="iTalentii"><img src="./Logo.PNG">
+                        <h1 class="ProjectsText iTalentii"></h1>
+                    </a>
+                </div>
+                <div class="swiper-slide"><a class="CashonomicsWork"><img
+                            src="https://cashonomics.me/images/Cashonomics.png">
+                        <h1 class="ProjectsText CashonomicsWork"></h1>
+                    </a></div>
+                <div class="swiper-slide"><a class="DonkeyClick"><img src="./donkeyclick.png">
+                        <h1 class="ProjectsText DonkeyClick"></h1>
+                    </a></div>
+            </div>
+
+            <div class="prev">
+                <svg width="10" height="15" viewBox="0 0 10 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9.2625 13.2375L3.5375 7.5L9.2625 1.7625L7.5 0L0 7.5L7.5 15L9.2625 13.2375Z"
+                        fill="#A99260" />
+                </svg>
+
+            </div>
+            <div class="next">
+                <svg width="10" height="15" viewBox="0 0 10 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M0.737305 13.2375L6.4623 7.5L0.737305 1.7625L2.4998 0L9.9998 7.5L2.4998 15L0.737305 13.2375Z"
+                        fill="#A99260" />
+                </svg>
+
+            </div>
+            <div class="pagination"></div>
+        </div>
+
+    </div>
+    <script src="projects.js"></script>
+
+    <div class="ContactMe" id="ContactMe">
+
+        <div class="ContactText overviewheadertext">
+            <h1>Would you like to get in touch? Do so here:</h1>
+        </div>
+
+        <div>
+            <form class="ContactForm" action="https://formsubmit.co/dmrknife@gmail.com" method="POST">
+                <input type="hidden" name="_subject" value="Portfolio Contact">
+                <input type="hidden" name="_cc" value="harshithmbusiness@gmail.com">
+                <input placeholder="Email" class="input" type="email" name="email">
+                <input type="hidden" name="_next" value="http://127.0.0.1:5500/index.html">
+                <textarea placeholder="Message" type="text" name="message" class="input"></textarea>
+                <button class="submitbutton" type="submit">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span> Send
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <div id="popup1" class="popup-container">
+        <div class="popup-content">
+            <a class="close">&times;</a>
+            <h3>Popup 1</h3>
+            <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the
+                industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and
+                scrambled it to make a type specimen book.</p>
+            <img src="" class="popup-img">
+            <a class="popup-urlhref" href=""><img src="https://cdn-icons-png.flaticon.com/512/3214/3214679.png"
+                    class="popup-url"></a>
+        </div>
+    </div>
+
+</body>
+
+</html>
