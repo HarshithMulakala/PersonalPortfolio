@@ -28,6 +28,8 @@ $(document).ready(function () {
         $('.popup-container').css("visibility", "hidden");
         $('.popup-container').css("opacity", "0");
         $('.popup-container').css("transform", "scale(1.3)");
+        $('.popup-img').css("visibility", "hidden");
+        $('.popup-img').css("opacity", "0");
     });
 
     $('.swiper-slide').click(function (e) {
