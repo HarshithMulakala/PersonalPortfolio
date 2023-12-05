@@ -54,19 +54,19 @@ $(document).ready(function () {
         if ($(e.target).hasClass('Cashonomics')) {
             $(".popup-container h3").text("Cashonomics Website");
             $(".popup-container p").text("Cashonomics Website is a dynamic website I have specifically designed and coded for the nonprofit organization, aimed at promoting financial literacy and economic empowerment. Leveraging the power of SCSS, HTML, and JS, the website offers a visually appealing and user-friendly interface. The integration of Firebase as the backend infrastructure empowers administrators to create and manage engaging and informative blogs directly on the website. Through this seamless platform, admins can effortlessly share valuable insights, tips, and resources, fostering an interactive and educational community focused on improving financial well-being and understanding.");
-            $(".popup-urlhref").attr("href", "https://cashonomics.me/");
+            $(".popup-urlhref").attr("href", "http://shahs-website.vercel.app/");
             $(".popup-img").attr("src", "");
         }
         if ($(e.target).hasClass('QBot')) {
             $(".popup-container h3").text("Q Bot");
             $(".popup-container p").text("Q Bot is a powerful Discord bot developed using JavaScript and the Discord.js library. Its primary function is to enhance the music listening experience in voice channels by allowing users to play music from YouTube links. Leveraging the capabilities of Discord.js, the bot effortlessly handles commands to play, pause, and stop music, while also providing the flexibility to skip to the next song in the queue. The bot's queue feature ensures a smooth playback experience, allowing users to add multiple songs to the playlist and enjoy uninterrupted music. Moreover, Q Bot has been engineered to be versatile enough to serve multiple servers simultaneously, catering to the needs of numerous communities. Its seamless integration with Discord and reliable performance through the hosting of the bot by replit has garnered widespread adoption, attracting hundreds of users who enjoy its music playback functionality and other features.");
-            $(".popup-urlhref").attr("href", "https://github.com/imcertain101/QuranBot/");
+            $(".popup-urlhref").attr("href", "https://github.com/HarshithMulakala/ReaderBot");
             $(".popup-img").attr("src", "");
         }
         if ($(e.target).hasClass('CashonomicsWork')) {
             $(".popup-container h3").text("Cashonomics Work");
             $(".popup-container p").text("Cashonomics is a student-led non-profit organization dedicated to promoting financial literacy across all age groups. As a Web Developer and Student Advisory Board Member, my role within the organization is multifaceted. I was responsible for the complete development of Cashonomics' website, including designing the user interface, implementing backend functionality, and crafting HTML/CSS elements. Beyond web development, I also serve as a valuable consultant, leveraging my expertise in technology and emphasizing the importance of establishing an online presence. Through my guidance and connections, I contribute to building relationships for the organization and educating its members about specific technological needs and the significance of utilizing technology to further the organizations mission of financial education.");
-            $(".popup-urlhref").attr("href", "https://cashonomics.me/");
+            $(".popup-urlhref").attr("href", "http://shahs-website.vercel.app/");
             $(".popup-img").attr("src", "");
         }
         if ($(e.target).hasClass('DonkeyClick')) {
