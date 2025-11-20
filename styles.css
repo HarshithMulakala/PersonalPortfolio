@@ -287,83 +287,77 @@ section {
 }
 
 .cards {
-    background: transparent;
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
-    margin: 0;
-    padding: 0;
-    align-items: center;
+    gap: 30px;
     justify-content: center;
-    position: relative;
-    width: auto;
-    height: auto;
-    font-size: var(--font-size-21xl);
-    color: var(--color-burlywood);
-    font-family: var(--font-bebas-neue);
+    margin-top: 40px;
 }
 
 .card {
-    margin: 30px;
-    width: 133.333333px;
-    height: 200px;
-    background: #313131;
-    border: 2px solid #fadebb;
-    border-radius: 10px;
+    width: 150px;
+    height: 150px;
+    background: #212121;
+    border: 1px solid rgba(254, 203, 153, 0.2);
+    border-radius: 15px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
-    color: black;
-    transition: 0.2s ease-in-out;
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-10px);
+    border-color: rgba(231, 139, 52, 0.9);
+    box-shadow: 0 10px 20px rgba(231, 139, 52, 0.15);
 }
 
 .jsimg {
-    position: absolute;
-    align-self: center;
-    width: auto;
-    height: 25%;
-    transition: 0.2s ease-in-out;
-    z-index: 0;
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    transition: all 0.3s ease;
+}
+
+.unityimg {
+    width: 125px;
+    height: 125px;
 }
 
 .textBox {
+    position: absolute;
+    bottom: -40px;
+    left: 0;
     width: 100%;
-    height: 100%;
+    text-align: center;
+    background: rgba(231, 139, 52, 0.9);
+    padding: 5px 0;
+    transition: all 0.3s ease;
     opacity: 0;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-    flex-direction: column;
-    transition: 0.2s ease-in-out;
-    z-index: 2;
 }
 
-.textBox>.text {
-    font-weight: bold;
-    margin: 0;
-    margin-bottom: 1vw;
-    padding: 0;
-}
-
-.textBox>.head {
-    font-size: 25px;
-    word-wrap: break-word;
-}
-
-.textBox>span {
-    font-size: 18px;
-    color: white;
-}
-
-.card:hover>.textBox {
+.card:hover .textBox {
+    bottom: 0;
     opacity: 1;
 }
 
-.card:hover>.jsimg {
-    height: 45%;
-    filter: blur(10px);
-    animation: anim 3s infinite;
+.card:hover .jsimg {
+    transform: translateY(-15px);
+}
+
+.textBox .text.head {
+    font-size: 14px;
+    font-weight: 700;
+    color: #141517;
+    margin: 0;
+}
+
+.textBox span {
+    display: none;
 }
 
 .ContactMe {
