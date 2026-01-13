@@ -17,6 +17,22 @@ const projectsData = [
         category: "project"
     },
     {
+        id: "Resolutions",
+        title: "5 Minute Resolutions",
+        description: "A new years resolution app that allows you to set resolutions for yourself and track your progress.",
+        image: "./resolutionsicon.png",
+        link: "https://apps.apple.com/us/app/5-minute-resolutions/id6756897215",
+        category: "project"
+    },
+    {
+        id: "ClipThat",
+        title: "ClipThat!",
+        description: "ClipThat! lets you instantly save the last 30–60 seconds of audio with one tap using continuous buffering, so you never miss spontaneous conversations, quick ideas, or memorable moments.",
+        image: "./ClipThatIcon.png",
+        link: "https://apps.apple.com/us/app/clipthat/id6756780428",
+        category: "project"
+    },
+    {
         id: "PlayAI",
         title: "PlayAI",
         description: "PlayAI is a CLI prompt-to-2D Unity game tool. Describe a simple game in natural language and generate a playable 2D prototype with scaffolded scenes, prefabs, and scripts to accelerate experimentation.",
@@ -32,14 +48,14 @@ const projectsData = [
         link: "https://github.com/HarshithMulakala/CuryCalAI",
         category: "project"
     },
-    {
-        id: "BraveBear",
-        title: "Brave Bear",
-        description: "Brave Bear is a unique app created using React Native for the frontend and Firebase for the backend. The app provides a safe space for teenagers to connect with professionals who specialize in mental health, offering free sessions to help them navigate through their struggles. With a user-friendly interface built through react-native alongside secure chat functionality and profile picture storage done through the integration of Google Firebase, Brave Bear empowers teens to seek support, fostering a community that promotes mental well-being and personal growth.",
-        image: "./BraveBear.png", // Using the png from file structure if available, or base64 from html? HTML has base64. I should check if BraveBear.png exists. File list says yes.
-        link: "https://github.com/HarshithMulakala/BackOnTrack",
-        category: "project"
-    },
+    // {
+    //     id: "BraveBear",
+    //     title: "Brave Bear",
+    //     description: "Brave Bear is a unique app created using React Native for the frontend and Firebase for the backend. The app provides a safe space for teenagers to connect with professionals who specialize in mental health, offering free sessions to help them navigate through their struggles. With a user-friendly interface built through react-native alongside secure chat functionality and profile picture storage done through the integration of Google Firebase, Brave Bear empowers teens to seek support, fostering a community that promotes mental well-being and personal growth.",
+    //     image: "./BraveBear.png", // Using the png from file structure if available, or base64 from html? HTML has base64. I should check if BraveBear.png exists. File list says yes.
+    //     link: "https://github.com/HarshithMulakala/BackOnTrack",
+    //     category: "project"
+    // },
     {
         id: "BulletBounce",
         title: "Bullet Bounce",
