@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Keeps, email-native company intelligence">
+  <defs>
+    <linearGradient id="keepsBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1d21"/>
+      <stop offset="1" stop-color="#0a0e1a"/>
+    </linearGradient>
+    <radialGradient id="keepsGlow" cx="0.5" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#e78b34" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#e78b34" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#keepsBg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#keepsGlow)"/>
+  <rect x="10" y="10" width="492" height="492" rx="106" fill="none" stroke="#bc9b7e" stroke-opacity="0.16" stroke-width="2"/>
+  <circle cx="256" cy="256" r="156" fill="none" stroke="#e78b34" stroke-opacity="0.14" stroke-width="10"/>
+  <rect x="120" y="168" width="272" height="176" rx="26" fill="none" stroke="#ffe9bb" stroke-width="16"/>
+  <path d="M132 182 L256 286 L380 182" fill="none" stroke="#e78b34" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="256" cy="320" r="7" fill="#fecb99"/>
+</svg>
