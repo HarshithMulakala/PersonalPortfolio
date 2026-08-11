@@ -1,205 +1,599 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
-    <meta name="viewport" content="initial-scale=1, width=device-width" />
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
-    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.0.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="./global.css" />
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./projects.css" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas Neue:wght@400&display=swap" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Italianno&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" href="./HM.png">
-    <title>Harshith Mulakala Portfolio</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harshith Mulakala | AI Engineer &amp; Founder</title>
+  <meta name="description"
+    content="Harshith Mulakala is an AI engineer and founder in Dallas. Computer science at UT Dallas. Founded Basics and Speakl. Builds AI products from idea to production." />
+  <meta name="theme-color" content="#141517" />
+  <link rel="canonical" href="https://www.harshithm.com/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.harshithm.com/" />
+  <meta property="og:title" content="Harshith Mulakala | AI Engineer &amp; Founder" />
+  <meta property="og:description"
+    content="AI engineer and founder in Dallas. Computer science at UT Dallas. Founded Basics and Speakl. Builds AI products from idea to production." />
+  <meta property="og:image" content="https://www.harshithm.com/HM.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Harshith Mulakala | AI Engineer &amp; Founder" />
+  <meta name="twitter:description"
+    content="AI engineer and founder in Dallas. Builds AI products from idea to production." />
+  <meta name="twitter:image" content="https://www.harshithm.com/HM.png" />
+
+  <link rel="icon" href="./HM.png" />
+  <link rel="apple-touch-icon" href="./HM.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-    <header class="mainheader">
-        <a href="#" class="logo">HM</a>
+  <span id="top" class="anchor"></span>
 
-        <ul class="nav">
-            <li><a href="#About" id="butabout">Overview</a></li>
-            <li><a href="#Projects" id="butprojects">Experience</a></li>
-            <li><a href="#ContactMe" id="butcontact">Contact Me</a></li>
-        </ul>
+  <div class="starfield" aria-hidden="true">
+    <div class="star-layer" id="stars1"></div>
+    <div class="star-layer" id="stars2"></div>
+    <div class="star-layer" id="stars3"></div>
+  </div>
 
-        <div class="bx bx-menu" id="menu-icon"></div>
-    </header>
+  <div class="page">
 
-    <div class="allstars">
-        <div id='stars'></div>
-        <div id='stars2'></div>
-        <div id='stars3'></div>
-    </div>
+    <!-- NAV -->
+    <nav class="nav" aria-label="Section navigation">
+      <a href="#top" data-label="Home" aria-label="Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 9.5 12 2.5l9 7V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <path d="M9.5 22V13h5v9" />
+        </svg>
+      </a>
+      <a href="#projects" data-label="Projects" aria-label="Projects">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+      </a>
+      <a href="#experience" data-label="Experience" aria-label="Experience">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+      </a>
+      <a href="#skills" data-label="Skills" aria-label="Skills">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+        </svg>
+      </a>
+      <a href="#contact" data-label="Contact" aria-label="Contact">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 6-10 7L2 6" />
+        </svg>
+      </a>
+    </nav>
 
-    <section class="home" id="home">
-        <div class="home-text">
-            <h3 id="harshith-mulakala" class="harshith-mulakala">Harshith Mulakala</h3>
-            <h2 class="a-programmer"><span>A </span><span class="typeEffect"></span></h2>
-            <button class="about-me" onClick="document.getElementById('About').scrollIntoView();">OVERVIEW</button>
-            <button class="resumebutton btn-hover">RESUME</button>
+    <div class="shell">
+
+      <!-- PROFILE CARD -->
+      <aside class="rail">
+        <div class="card">
+          <div class="portrait">
+            <img src="./image.png" alt="Illustrated portrait of Harshith Mulakala" width="240" height="284" />
+          </div>
+
+          <h1 class="card-name">Harshith Mulakala</h1>
+
+          <div class="badge" aria-hidden="true">
+            <svg class="card-arc" viewBox="0 0 520 180">
+              <path d="M0 23 A390 390 0 0 0 520 23" />
+            </svg>
+            <svg class="badge-mark" viewBox="0 0 24 24">
+              <path d="M12 2.2 14 8.6l6.4 2-6.4 2-2 6.4-2-6.4-6.4-2 6.4-2z" />
+            </svg>
+          </div>
+
+          <p class="card-bio">AI engineer and founder in Dallas. I build products from idea to production.</p>
+
+          <div class="card-social">
+            <a href="https://github.com/HarshithMulakala" target="_blank" rel="noopener" aria-label="GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+              </svg>
+            </a>
+            <a href="https://www.linkedin.com/in/harshith-mulakala-ba590823b/" target="_blank" rel="noopener"
+              aria-label="LinkedIn">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" />
+                <rect x="2" y="9" width="4" height="12" />
+                <circle cx="4" cy="4" r="2" />
+              </svg>
+            </a>
+            <a href="https://www.instagram.com/harshithmulakala/" target="_blank" rel="noopener" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.6" cy="6.4" r="1.1" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+            <a href="mailto:harshithmulakala6@gmail.com" aria-label="Email">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 6-10 7L2 6" />
+              </svg>
+            </a>
+          </div>
         </div>
+      </aside>
 
-        <div id="home-img" class="home-img">
-            <img src="./image.png" alt="">
-        </div>
-        <script src="https://unpkg.com/typed.js@2.0.14/dist/typed.umd.js"></script>
-        <script src="text.js"></script>
-    </section>
+      <!-- CONTENT -->
+      <main class="column">
 
-    <div class="icons">
-        <a href="https://www.linkedin.com/in/harshith-mulakala-ba590823b/"><i class="ri-linkedin-box-line"></i></a>
-        <a href="https://github.com/HarshithMulakala"><i class="ri-github-line"></i></a>
-        <a href="https://www.instagram.com/harshithmulakala/"><i class="ri-instagram-line"></i></a>
-    </div>
+        <!-- HERO -->
+        <section class="hero">
+          <h2 class="display hero-title">AI ENGINEER<br><span class="ghost">&amp; FOUNDER</span></h2>
 
-    <div class="Resume">
-        <iframe src="resume.pdf"></iframe>
-        <button class="closeresume">X</button>
-    </div>
-
-    <div class="About" id="About">
-        <div class="overview">
-            <h1 class="overviewheadertext">Overview</h1>
-            <p class="overviewtext"> I am a versatile and skilled software developer with a strong foundation in Java
-                and expertise in an array of frameworks and languages including Unity, C#, React/React Native, Flutter,
-                and Javascript. I am not only a fast learner but also thrive in collaborative environments, am quick to
-                adapt into different situations, and love problem solving. Get in touch today!</p>
-        </div>
-
-        <div class="cards">
-            <div class="card">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" class="jsimg">
-                    <path fill="#F0DB4F"
-                        d="M2 1v125h125v-125h-125zm66.119 106.513c-1.845 3.749-5.367 6.212-9.448 7.401-6.271 1.44-12.269.619-16.731-2.059-2.986-1.832-5.318-4.652-6.901-7.901l9.52-5.83c.083.035.333.487.667 1.071 1.214 2.034 2.261 3.474 4.319 4.485 2.022.69 6.461 1.131 8.175-2.427 1.047-1.81.714-7.628.714-14.065-.001-10.115.046-20.188.046-30.188h11.709c0 11 .06 21.418 0 32.152.025 6.58.596 12.446-2.07 17.361zm48.574-3.308c-4.07 13.922-26.762 14.374-35.83 5.176-1.916-2.165-3.117-3.296-4.26-5.795 4.819-2.772 4.819-2.772 9.508-5.485 2.547 3.915 4.902 6.068 9.139 6.949 5.748.702 11.531-1.273 10.234-7.378-1.333-4.986-11.77-6.199-18.873-11.531-7.211-4.843-8.901-16.611-2.975-23.335 1.975-2.487 5.343-4.343 8.877-5.235l3.688-.477c7.081-.143 11.507 1.727 14.756 5.355.904.916 1.642 1.904 3.022 4.045-3.772 2.404-3.76 2.381-9.163 5.879-1.154-2.486-3.069-4.046-5.093-4.724-3.142-.952-7.104.083-7.926 3.403-.285 1.023-.226 1.975.227 3.665 1.273 2.903 5.545 4.165 9.377 5.926 11.031 4.474 14.756 9.271 15.672 14.981.882 4.916-.213 8.105-.38 8.581z">
-                    </path>
+          <div class="hero-intro">
+            <p class="lead">
+              Computer science at UT Dallas. I founded Basics, which raised a $1M pre seed, and co founded Speakl.
+              Today I build AI products that reach real users.
+            </p>
+            <div class="hero-links">
+              <a class="text-link" href="./resume.pdf" target="_blank" rel="noopener">VIEW RESUME
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 17 17 7" />
+                  <path d="M7 7h10v10" />
                 </svg>
-                <div class="textBox">
-                    <p class="text head">Javascript</p>
-                    <span>Programming Language</span>
-                </div>
-            </div>
-            <div class="card">
-                <svg xmlns="http://www.w3.org/2000/svg" class="jsimg" width="1850" height="2500"
-                    preserveAspectRatio="xMinYMin meet" viewBox="0 0 256 346">
-                    <path fill="#5382A1"
-                        d="M82.554 267.473s-13.198 7.675 9.393 10.272c27.369 3.122 41.356 2.675 71.517-3.034 0 0 7.93 4.972 19.003 9.279-67.611 28.977-153.019-1.679-99.913-16.517M74.292 229.659s-14.803 10.958 7.805 13.296c29.236 3.016 52.324 3.263 92.276-4.43 0 0 5.526 5.602 14.215 8.666-81.747 23.904-172.798 1.885-114.296-17.532">
-                    </path>
-                    <path fill="#E76F00"
-                        d="M143.942 165.515c16.66 19.18-4.377 36.44-4.377 36.44s42.301-21.837 22.874-49.183c-18.144-25.5-32.059-38.172 43.268-81.858 0 0-118.238 29.53-61.765 94.6">
-                    </path>
-                    <path fill="#5382A1"
-                        d="M233.364 295.442s9.767 8.047-10.757 14.273c-39.026 11.823-162.432 15.393-196.714.471-12.323-5.36 10.787-12.8 18.056-14.362 7.581-1.644 11.914-1.337 11.914-1.337-13.705-9.655-88.583 18.957-38.034 27.15 137.853 22.356 251.292-10.066 215.535-26.195M88.9 190.48s-62.771 14.91-22.228 20.323c17.118 2.292 51.243 1.774 83.03-.89 25.978-2.19 52.063-6.85 52.063-6.85s-9.16 3.923-15.787 8.448c-63.744 16.765-186.886 8.966-151.435-8.183 29.981-14.492 54.358-12.848 54.358-12.848M201.506 253.422c64.8-33.672 34.839-66.03 13.927-61.67-5.126 1.066-7.411 1.99-7.411 1.99s1.903-2.98 5.537-4.27c41.37-14.545 73.187 42.897-13.355 65.647 0 .001 1.003-.895 1.302-1.697">
-                    </path>
-                    <path fill="#E76F00"
-                        d="M162.439.371s35.887 35.9-34.037 91.101c-56.071 44.282-12.786 69.53-.023 98.377-32.73-29.53-56.75-55.526-40.635-79.72C111.395 74.612 176.918 57.393 162.439.37">
-                    </path>
-                    <path fill="#5382A1"
-                        d="M95.268 344.665c62.199 3.982 157.712-2.209 159.974-31.64 0 0-4.348 11.158-51.404 20.018-53.088 9.99-118.564 8.824-157.399 2.421.001 0 7.95 6.58 48.83 9.201">
-                    </path>
+              </a>
+              <a class="text-link quiet" href="#contact">GET IN TOUCH
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
                 </svg>
-                <div class="textBox">
-                    <p class="text head">Java</p>
-                    <span>Programming Language</span>
-                </div>
+              </a>
             </div>
-            <div class="card">
-                <img class="jsimg" src="https://cdn.cdnlogo.com/logos/c/27/c.svg">
-                <div class="textBox">
-                    <p class="text head">C#</p>
-                    <span>Programming Language</span>
-                </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-num">$1M+</span>
+              <span class="stat-label">PRE-SEED RAISED</span>
             </div>
-            <div class="card">
-                <img class="jsimg"
-                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/2300px-React-icon.svg.png">
-                <div class="textBox">
-                    <p class="text head">React</p>
-                    <span>Framework</span>
-                </div>
+            <div class="stat">
+              <span class="stat-num">1.5K+</span>
+              <span class="stat-label">USERS SHIPPED</span>
             </div>
-            <div class="card">
-                <img class="jsimg unityimg"
-                    src="https://cdn.sanity.io/images/fuvbjjlp/production/6d1df49565a2ad20ffa8386f1465ba52039133e3-1920x1080.png">
-                <div class="textBox">
-                    <p class="text head">Unity</p>
-                    <span>Game Engine</span>
-                </div>
+            <div class="stat">
+              <span class="stat-num">50+</span>
+              <span class="stat-label">PROD DEPLOYMENTS</span>
             </div>
-            <div class="card">
-                <img class="jsimg"
-                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png">
-                <div class="textBox">
-                    <p class="text head">Python</p>
-                    <span>Programming Language</span>
-                </div>
+          </div>
+
+          <div class="promo">
+            <a class="promo-card promo-a" href="#projects">
+              <svg class="promo-pattern" viewBox="0 0 300 240" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M-20 60C40 20 90 100 150 70S260 20 330 60" />
+                <path d="M-20 130C40 90 90 170 150 140S260 90 330 130" />
+                <path d="M-20 200C40 160 90 240 150 210S260 160 330 200" />
+              </svg>
+              <svg class="promo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2 2 7l10 5 10-5z" />
+                <path d="m2 17 10 5 10-5" />
+                <path d="m2 12 10 5 10-5" />
+              </svg>
+              <span class="promo-title">AI PRODUCTS,<br>END TO END</span>
+              <svg class="promo-arrow" viewBox="0 0 34 34" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
+                <path d="M11 17h12" />
+                <path d="m18 12 5 5-5 5" />
+              </svg>
+            </a>
+            <a class="promo-card promo-b" href="#experience">
+              <svg class="promo-pattern" viewBox="0 0 366 240" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M-20 215 40 40 100 215 160 40 220 215 280 40 340 215 400 40" />
+              </svg>
+              <svg class="promo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m16 18 6-6-6-6" />
+                <path d="m8 6-6 6 6 6" />
+              </svg>
+              <span class="promo-title">FULL STACK.<br>MOBILE. CLOUD.</span>
+              <svg class="promo-arrow" viewBox="0 0 34 34" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
+                <path d="M11 17h12" />
+                <path d="m18 12 5 5-5 5" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- PROJECTS -->
+        <section class="block" id="projects">
+          <h2 class="display">SELECTED<br><span class="ghost">PROJECTS</span></h2>
+          <div class="rows">
+
+            <a class="row" href="https://github.com/HarshithMulakala/PlayAI" target="_blank" rel="noopener">
+              <img class="thumb" src="./playai.jpg" alt="PlayAI" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">PlayAI</h3>
+                <p class="row-desc">Turns one text prompt into a playable Unity 2D game.</p>
+                <p class="row-meta">C#, Python, Unity</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://apps.apple.com/us/app/clipthat/id6756780428" target="_blank" rel="noopener">
+              <img class="thumb" src="./ClipThatIcon.png" alt="ClipThat!" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">ClipThat!</h3>
+                <p class="row-desc">Saves the last 30 to 60 seconds of audio with one tap, all on device.</p>
+                <p class="row-meta">Swift, iOS, live on the App Store</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://github.com/HarshithMulakala" target="_blank" rel="noopener">
+              <img class="thumb" src="./heymom.svg" alt="HeyMom" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">HeyMom</h3>
+                <p class="row-desc">Real time voice agent. Press to talk, hear a spoken answer back.</p>
+                <p class="row-meta">React Native, FastAPI, WebSockets, Deepgram</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://github.com/HarshithMulakala/ReaderBot" target="_blank" rel="noopener">
+              <img class="thumb" src="./qbot.svg" alt="Q Bot" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">Q Bot</h3>
+                <p class="row-desc">Discord bot that takes spoken commands to search and queue music.</p>
+                <p class="row-meta">Node.js, JavaScript, Discord.js</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://github.com/HarshithMulakala/CuryCalAI" target="_blank" rel="noopener">
+              <img class="thumb" src="./currycal.png" alt="CurryCal" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">CurryCal</h3>
+                <p class="row-desc">Calorie tracking for South Asian food, counted from a photo of the dish.</p>
+                <p class="row-meta">Python, computer vision</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://apps.apple.com/us/app/5-minute-resolutions/id6756897215" target="_blank"
+              rel="noopener">
+              <img class="thumb" src="./resolutionsicon.png" alt="5 Minute Resolutions" width="130" height="135"
+                loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">5 Minute Resolutions</h3>
+                <p class="row-desc">Set resolutions, then track progress in short daily check ins.</p>
+                <p class="row-meta">Swift, iOS, live on the App Store</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row" href="https://cert.itch.io/bullet-bounce" target="_blank" rel="noopener">
+              <img class="thumb" src="./bulletbounce.png" alt="Bullet Bounce" width="130" height="135"
+                loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">Bullet Bounce</h3>
+                <p class="row-desc">2D puzzle game. Fire one bullet and aim it back into yourself.</p>
+                <p class="row-meta">Unity, C#, built for a game jam</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+          </div>
+        </section>
+
+        <!-- EXPERIENCE -->
+        <section class="block" id="experience">
+          <h2 class="display">WHERE I HAVE<br><span class="ghost">WORKED</span></h2>
+          <div class="rows">
+
+            <div class="row row-static">
+              <div class="row-text">
+                <h3 class="row-title">Majestic Turbo</h3>
+                <p class="row-desc">AI Engineer Intern. Built five internal AI tools, including inventory management,
+                  an executive command center for delegating work to sales reps and tracking shipments, late shipment
+                  prediction, and a call pipeline that transcribes sales calls and writes LLM summaries into each rep
+                  CRM record. Also shipped a marketing analytics dashboard and a lead generation tool on the Exa Search
+                  API and the Google Places API.</p>
+                <p class="row-meta">Jul 2026 to Aug 2026 &nbsp;/&nbsp; Dallas, TX</p>
+              </div>
             </div>
-        </div>
 
-    </div>
+            <a class="row" href="https://github.com/Basics-Vault/basicsOS" target="_blank" rel="noopener">
+              <div class="row-text">
+                <h3 class="row-title">Basics</h3>
+                <p class="row-desc">Founder and CTO. A self hosted company operating system for early stage startups
+                  that unifies CRM, projects, documents, analytics, and automations. Built on Next.js, TypeScript,
+                  Node.js, PostgreSQL, Docker, and AWS with multi tenant RBAC, event driven workflows, real time sync,
+                  and containerized customer managed deployments. Developed in the open with four contributors. Ran 50+
+                  founder interviews, closed four paid pilots in 20 days, and raised a $1M pre seed at a $10M
+                  valuation.</p>
+                <p class="row-meta">Jan 2026 to Jul 2026 &nbsp;/&nbsp; San Francisco, CA</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-    <div class="Projects" id="Projects">
-        <div class="tab-container">
-            <button class="tab-btn active" data-tab="projects">Projects</button>
-            <button class="tab-btn" data-tab="work">Work Experience</button>
-        </div>
-        
-        <div id="projects-grid" class="grid-container">
-            <!-- Projects injected by JS -->
-        </div>
+            <a class="row" href="https://speakl.ai" target="_blank" rel="noopener">
+              <div class="row-text">
+                <h3 class="row-title">Speakl Inc.</h3>
+                <p class="row-desc">Co-Founder and CTO. An AI communication platform that gives multimodal feedback on
+                  public speaking and interviews. React and FastAPI, 1.5K lifetime users and 300+ monthly active, with
+                  custom computer vision, audio, and NLP pipelines over 500+ hours of speech on 10+ metrics. AWS
+                  infrastructure served 15K+ monthly API requests at 99% uptime. Led four engineers through CI/CD and
+                  50+ production deployments.</p>
+                <p class="row-meta">Jun 2025 to Dec 2025 &nbsp;/&nbsp; Frisco, TX</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-        <div id="work-grid" class="grid-container" style="display: none;">
-            <!-- Work items injected by JS -->
-        </div>
-    </div>
+            <a class="row" href="https://github.com/AakristG/AdFusion" target="_blank" rel="noopener">
+              <div class="row-text">
+                <h3 class="row-title">ACM Research</h3>
+                <p class="row-desc">Head Researcher on AdFusion. Fine tuned Stable Diffusion and LLMs on 5,000+ ad
+                  images with preprocessing, augmentation, and output validation. Built Python and Selenium scrapers
+                  that pulled 3,000+ ads from 10+ platforms at 95% consistency.</p>
+                <p class="row-meta">Sep 2024 to Dec 2024 &nbsp;/&nbsp; Richardson, TX</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-    <div class="ContactMe" id="ContactMe">
+            <div class="row row-static">
+              <div class="row-text">
+                <h3 class="row-title">iTallentii Tech</h3>
+                <p class="row-desc">SWE Intern and Consultant. Built JavaScript and Node.js scraping pipelines across
+                  20+ public sources and cut manual data collection time by 80%. Shipped a React front end on RESTful
+                  Node.js APIs, then returned as a consultant to build katars.com and internal tools.</p>
+                <p class="row-meta">Nov 2022 to Jan 2023 &nbsp;/&nbsp; Frisco, TX</p>
+              </div>
+            </div>
 
-        <div class="ContactText overviewheadertext">
-            <h1>Would you like to get in touch? Do so here:</h1>
-        </div>
+            <div class="row row-static">
+              <div class="row-text">
+                <h3 class="row-title">DonkeyClick</h3>
+                <p class="row-desc">Co-Founder and Lead Developer. An indie game studio started with two friends. Main
+                  software developer on every project, shipping mobile and PC games in Unity and C#, including Bullet
+                  Bounce and Bombkey Thief.</p>
+                <p class="row-meta">Game studio &nbsp;/&nbsp; Unity and C#</p>
+              </div>
+            </div>
 
-        <div>
-            <form class="ContactForm" action="https://formsubmit.co/dmrknife@gmail.com" method="POST">
-                <input type="hidden" name="_subject" value="Portfolio Contact">
-                <input type="hidden" name="_cc" value="harshithmbusiness@gmail.com">
-                <input placeholder="Email" class="input" type="email" name="email">
-                <input type="hidden" name="_next" value="https://www.harshithm.com/">
-                <textarea placeholder="Message" type="text" name="message" class="input"></textarea>
-                <button class="submitbutton" type="submit">
-                    <span></span> Send
-                </button>
+            <a class="row" href="http://shahs-website.vercel.app/" target="_blank" rel="noopener">
+              <div class="row-text">
+                <h3 class="row-title">Cashonomics</h3>
+                <p class="row-desc">Web Developer and Student Advisory Board. Built the full website for a student led
+                  financial literacy nonprofit, front end and back end. Added a Firebase backed blog system so admins
+                  publish content directly, and advises the organization on technology.</p>
+                <p class="row-meta">Nonprofit &nbsp;/&nbsp; Firebase, SCSS, JavaScript</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+          </div>
+        </section>
+
+        <!-- SKILLS -->
+        <section class="block" id="skills">
+          <h2 class="display">TOOLS I<br><span class="ghost">USE DAILY</span></h2>
+
+          <div class="tools">
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98l-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95l.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25l-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">Python</span>
+                <span class="tool-sub">Language</span>
+              </span>
+            </div>
+
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0zm17.363 9.75c.612 0 1.154.037 1.627.111a6.38 6.38 0 0 1 1.306.34v2.458a3.95 3.95 0 0 0-.643-.361 5.093 5.093 0 0 0-.717-.26 5.453 5.453 0 0 0-1.426-.2c-.3 0-.573.028-.819.086a2.1 2.1 0 0 0-.623.242c-.17.104-.3.229-.393.374a.888.888 0 0 0-.14.49c0 .196.053.373.156.529.104.156.252.304.443.444s.423.276.696.41c.273.135.582.274.926.416.47.197.892.407 1.266.628.374.222.695.473.963.753.268.279.472.598.614.957.142.359.214.776.214 1.253 0 .657-.125 1.21-.373 1.656a3.033 3.033 0 0 1-1.012 1.085 4.38 4.38 0 0 1-1.487.596c-.566.12-1.163.18-1.79.18a9.916 9.916 0 0 1-1.84-.164 5.544 5.544 0 0 1-1.512-.493v-2.63a5.033 5.033 0 0 0 3.237 1.2c.333 0 .624-.03.872-.09.249-.06.456-.144.623-.25.166-.108.29-.234.373-.38a1.023 1.023 0 0 0-.074-1.089 2.12 2.12 0 0 0-.537-.5 5.597 5.597 0 0 0-.807-.444 27.72 27.72 0 0 0-1.007-.436c-.918-.383-1.602-.852-2.053-1.405-.45-.553-.676-1.222-.676-2.005 0-.614.123-1.141.369-1.582.246-.441.58-.804 1.004-1.089a4.494 4.494 0 0 1 1.47-.629 7.536 7.536 0 0 1 1.77-.201zm-15.113.188h9.563v2.166H9.506v9.646H6.789v-9.646H3.375z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">TypeScript</span>
+                <span class="tool-sub">Language</span>
+              </span>
+            </div>
+
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812 2.01-1.086 2.964-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474 0-.768 1.12-1.742 2.852-2.476.42-.18.88-.342 1.356-.494zm11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39.24-.375.48-.762.705-1.158.225-.39.435-.788.636-1.18zm-9.945.02c.2.392.41.783.64 1.175.23.39.465.772.705 1.143-.695-.102-1.365-.23-2.006-.386.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295-.22-.005-.406-.05-.553-.132-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64c.44.02.89.034 1.345.034.46 0 .915-.01 1.36-.034-.44.572-.895 1.095-1.345 1.565-.455-.47-.91-.993-1.36-1.565z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">React</span>
+                <span class="tool-sub">UI library</span>
+              </span>
+            </div>
+
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M18.665 21.978C16.758 23.255 14.465 24 12 24 5.377 24 0 18.623 0 12S5.377 0 12 0s12 5.377 12 12c0 3.583-1.574 6.801-4.067 9.001L9.219 7.2H7.2v9.596h1.615V9.251l9.85 12.727Zm-3.332-8.533 1.6 2.061V7.2h-1.6v6.245Z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">Next.js</span>
+                <span class="tool-sub">Web framework</span>
+              </span>
+            </div>
+
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.024-.527.272-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.383.607zM22.792 14.961c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">AWS</span>
+                <span class="tool-sub">Cloud</span>
+              </span>
+            </div>
+
+            <div class="tool">
+              <span class="tool-tile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="m12.9288 4.2939 3.7997 2.1929c.1366.077.1415.2905 0 .3675l-4.515 2.6076a.4192.4192 0 0 1-.4246 0L7.274 6.8543c-.139-.0745-.1415-.293 0-.3675l3.7972-2.193V0L1.3758 5.5977V16.793l3.7177-2.1456v-4.3858c-.0025-.1565.1813-.2682.318-.1838l4.5148 2.6076a.4252.4252 0 0 1 .2136.3676v5.2127c.0025.1565-.1813.2682-.3179.1838l-3.7996-2.1929-3.7178 2.1457L12 24l9.6954-5.5977-3.7178-2.1457-3.7996 2.1929c-.1341.082-.3229-.0248-.3179-.1838V13.053c0-.1565.087-.2956.2136-.3676l4.5149-2.6076c.134-.082.3228.0224.3179.1838v4.3858l3.7177 2.1456V5.5977L12.9288 0Z" />
+                </svg>
+              </span>
+              <span class="tool-text">
+                <span class="tool-name">Unity</span>
+                <span class="tool-sub">Game engine</span>
+              </span>
+            </div>
+          </div>
+
+          <ul class="chips">
+            <li>Java</li>
+            <li>JavaScript</li>
+            <li>C#</li>
+            <li>Swift</li>
+            <li>C/C++</li>
+            <li>SQL</li>
+            <li>React Native</li>
+            <li>Node.js</li>
+            <li>FastAPI</li>
+            <li>Flask</li>
+            <li>PyTorch</li>
+            <li>Selenium</li>
+            <li>Docker</li>
+            <li>PostgreSQL</li>
+            <li>Supabase</li>
+            <li>Git</li>
+            <li>CI/CD</li>
+            <li>REST APIs</li>
+            <li>WebSockets</li>
+            <li>Deepgram</li>
+            <li>Exa Search API</li>
+            <li>Google Places API</li>
+            <li>Jira</li>
+            <li>Certiport: Java</li>
+            <li>Certiport: JavaScript</li>
+            <li>Certiport: Network Security</li>
+          </ul>
+        </section>
+
+        <!-- EDUCATION -->
+        <section class="block" id="education">
+          <h2 class="display">WHERE I<br><span class="ghost">STUDY</span></h2>
+          <div class="rows">
+            <div class="row row-static">
+              <div class="row-text">
+                <h3 class="row-title">The University of Texas at Dallas</h3>
+                <p class="row-desc">B.S. Computer Science. Academic Excellence Scholarship.</p>
+                <p class="row-meta">Expected May 2028 &nbsp;/&nbsp; Richardson, TX</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONTACT -->
+        <section class="block" id="contact">
+          <h2 class="display">LET US<br><span class="ghost">TALK</span></h2>
+
+          <div class="contact">
+            <a class="mail-link" href="mailto:harshithmulakala6@gmail.com">harshithmulakala6@gmail.com
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <form class="form" action="https://formsubmit.co/dmrknife@gmail.com" method="POST">
+              <input type="hidden" name="_subject" value="Portfolio Contact">
+              <input type="hidden" name="_cc" value="harshithmbusiness@gmail.com">
+              <input type="hidden" name="_next" value="https://www.harshithm.com/">
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="cf-name">Name</label>
+                  <input id="cf-name" type="text" name="name" placeholder="Your name" autocomplete="name" required>
+                </div>
+                <div class="field">
+                  <label for="cf-email">Email</label>
+                  <input id="cf-email" type="email" name="email" placeholder="your@email.com" autocomplete="email"
+                    required>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="cf-message">Message</label>
+                <textarea id="cf-message" name="message" placeholder="What are you building?" required></textarea>
+              </div>
+
+              <button class="submit" type="submit">SEND MESSAGE</button>
             </form>
-        </div>
+          </div>
+        </section>
 
-    </div>
+        <footer class="footer">
+          <p>
+            Harshith Mulakala &nbsp;/&nbsp; Dallas, TX &nbsp;/&nbsp;
+            <a href="https://github.com/HarshithMulakala" target="_blank" rel="noopener">GitHub</a> &nbsp;
+            <a href="https://www.linkedin.com/in/harshith-mulakala-ba590823b/" target="_blank"
+              rel="noopener">LinkedIn</a> &nbsp;
+            <a href="https://www.instagram.com/harshithmulakala/" target="_blank" rel="noopener">Instagram</a>
+          </p>
+        </footer>
 
-    <div id="popup1" class="popup-container">
-        <div class="popup-content">
-            <a class="close">&times;</a>
-            <h3>Popup Title</h3>
-            <div class="popup-body">
-                <div class="popup-image-container">
-                    <img src="" class="popup-img">
-                </div>
-                <div class="popup-text-container">
-                    <p>Popup text goes here...</p>
-                    <a class="popup-urlhref" href="" target="_blank">
-                        Visit Project <i class="ri-external-link-line"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
+      </main>
     </div>
-    
-    <script src="main.js"></script>
+  </div>
+
+  <script src="./script.js"></script>
 </body>
 
 </html>

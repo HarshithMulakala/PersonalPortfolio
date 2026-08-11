@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 270" width="260" height="270" role="img" aria-label="Q Bot music queue">
+  <rect width="260" height="270" fill="#1e1f23"/>
+  <g fill="#e78b34">
+    <rect x="36" y="92" width="84" height="12" rx="6" opacity="0.45"/>
+    <rect x="36" y="128" width="66" height="12" rx="6" opacity="0.68"/>
+    <rect x="36" y="164" width="48" height="12" rx="6" opacity="0.45"/>
+    <rect x="176" y="66" width="13" height="112" rx="6.5"/>
+    <circle cx="166" cy="182" r="25"/>
+    <path d="M189 68c24 9 36 23 36 41 0 9-3 17-10 23 3-18-9-29-26-35z"/>
+  </g>
+</svg>

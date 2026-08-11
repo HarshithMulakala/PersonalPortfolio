@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 270" width="260" height="270" role="img" aria-label="HeyMom voice waveform">
+  <rect width="260" height="270" fill="#1e1f23"/>
+  <g fill="#e78b34">
+    <rect x="35" y="120" width="14" height="30" rx="7" opacity="0.32"/>
+    <rect x="57" y="105" width="14" height="60" rx="7" opacity="0.46"/>
+    <rect x="79" y="85" width="14" height="100" rx="7" opacity="0.64"/>
+    <rect x="101" y="60" width="14" height="150" rx="7" opacity="0.82"/>
+    <rect x="123" y="40" width="14" height="190" rx="7"/>
+    <rect x="145" y="60" width="14" height="150" rx="7" opacity="0.82"/>
+    <rect x="167" y="85" width="14" height="100" rx="7" opacity="0.64"/>
+    <rect x="189" y="105" width="14" height="60" rx="7" opacity="0.46"/>
+    <rect x="211" y="120" width="14" height="30" rx="7" opacity="0.32"/>
+  </g>
+</svg>
