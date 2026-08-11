@@ -29,6 +29,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
+  <script>
+    /* Hides the scroll reveal targets before first paint. Removed again if
+       script.js never runs, so the page is never stuck invisible. */
+    document.documentElement.classList.add("js");
+    setTimeout(function () {
+      if (!window.__revealReady) document.documentElement.classList.remove("js");
+    }, 2500);
+  </script>
 </head>
 
 <body>
@@ -50,15 +58,15 @@
           <path d="M9.5 22V13h5v9" />
         </svg>
       </a>
-      <a href="#projects" data-label="Projects" aria-label="Projects">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-      </a>
       <a href="#experience" data-label="Experience" aria-label="Experience">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="2" y="7" width="20" height="14" rx="2" />
           <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+      </a>
+      <a href="#projects" data-label="Projects" aria-label="Projects">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
       </a>
       <a href="#skills" data-label="Skills" aria-label="Skills">
@@ -73,6 +81,7 @@
           <path d="m22 6-10 7L2 6" />
         </svg>
       </a>
+      <span class="nav-dot" aria-hidden="true"></span>
     </nav>
 
     <div class="shell">
@@ -81,7 +90,7 @@
       <aside class="rail">
         <div class="card">
           <div class="portrait">
-            <img src="./image.png" alt="Illustrated portrait of Harshith Mulakala" width="240" height="284" />
+            <img src="./portrait.png" alt="Illustrated portrait of Harshith Mulakala" width="240" height="284" />
           </div>
 
           <h1 class="card-name">Harshith Mulakala</h1>
@@ -186,9 +195,9 @@
               </svg>
               <span class="promo-title">AI PRODUCTS,<br>END TO END</span>
               <svg class="promo-arrow" viewBox="0 0 34 34" aria-hidden="true">
-                <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
-                <path d="M11 17h12" />
-                <path d="m18 12 5 5-5 5" />
+                <rect class="pa-box" x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
+                <path class="pa-glyph" d="M11 17h12" />
+                <path class="pa-glyph" d="m18 12 5 5-5 5" />
               </svg>
             </a>
             <a class="promo-card promo-b" href="#experience">
@@ -201,122 +210,20 @@
               </svg>
               <span class="promo-title">FULL STACK.<br>MOBILE. CLOUD.</span>
               <svg class="promo-arrow" viewBox="0 0 34 34" aria-hidden="true">
-                <rect x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
-                <path d="M11 17h12" />
-                <path d="m18 12 5 5-5 5" />
+                <rect class="pa-box" x="0.75" y="0.75" width="32.5" height="32.5" rx="7.5" />
+                <path class="pa-glyph" d="M11 17h12" />
+                <path class="pa-glyph" d="m18 12 5 5-5 5" />
               </svg>
             </a>
-          </div>
-        </section>
-
-        <!-- PROJECTS -->
-        <section class="block" id="projects">
-          <h2 class="display">SELECTED<br><span class="ghost">PROJECTS</span></h2>
-          <div class="rows">
-
-            <a class="row" href="https://github.com/HarshithMulakala/PlayAI" target="_blank" rel="noopener">
-              <img class="thumb" src="./playai.jpg" alt="PlayAI" width="130" height="135" loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">PlayAI</h3>
-                <p class="row-desc">Turns one text prompt into a playable Unity 2D game.</p>
-                <p class="row-meta">C#, Python, Unity</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://apps.apple.com/us/app/clipthat/id6756780428" target="_blank" rel="noopener">
-              <img class="thumb" src="./ClipThatIcon.png" alt="ClipThat!" width="130" height="135" loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">ClipThat!</h3>
-                <p class="row-desc">Saves the last 30 to 60 seconds of audio with one tap, all on device.</p>
-                <p class="row-meta">Swift, iOS, live on the App Store</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://github.com/HarshithMulakala" target="_blank" rel="noopener">
-              <img class="thumb" src="./heymom.svg" alt="HeyMom" width="130" height="135" loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">HeyMom</h3>
-                <p class="row-desc">Real time voice agent. Press to talk, hear a spoken answer back.</p>
-                <p class="row-meta">React Native, FastAPI, WebSockets, Deepgram</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://github.com/HarshithMulakala/ReaderBot" target="_blank" rel="noopener">
-              <img class="thumb" src="./qbot.svg" alt="Q Bot" width="130" height="135" loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">Q Bot</h3>
-                <p class="row-desc">Discord bot that takes spoken commands to search and queue music.</p>
-                <p class="row-meta">Node.js, JavaScript, Discord.js</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://github.com/HarshithMulakala/CuryCalAI" target="_blank" rel="noopener">
-              <img class="thumb" src="./currycal.png" alt="CurryCal" width="130" height="135" loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">CurryCal</h3>
-                <p class="row-desc">Calorie tracking for South Asian food, counted from a photo of the dish.</p>
-                <p class="row-meta">Python, computer vision</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://apps.apple.com/us/app/5-minute-resolutions/id6756897215" target="_blank"
-              rel="noopener">
-              <img class="thumb" src="./resolutionsicon.png" alt="5 Minute Resolutions" width="130" height="135"
-                loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">5 Minute Resolutions</h3>
-                <p class="row-desc">Set resolutions, then track progress in short daily check ins.</p>
-                <p class="row-meta">Swift, iOS, live on the App Store</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
-            <a class="row" href="https://cert.itch.io/bullet-bounce" target="_blank" rel="noopener">
-              <img class="thumb" src="./bulletbounce.png" alt="Bullet Bounce" width="130" height="135"
-                loading="lazy" />
-              <div class="row-text">
-                <h3 class="row-title">Bullet Bounce</h3>
-                <p class="row-desc">2D puzzle game. Fire one bullet and aim it back into yourself.</p>
-                <p class="row-meta">Unity, C#, built for a game jam</p>
-              </div>
-              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 17 17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
-
           </div>
         </section>
 
         <!-- EXPERIENCE -->
         <section class="block" id="experience">
-          <h2 class="display">WHERE I HAVE<br><span class="ghost">WORKED</span></h2>
+          <h2 class="display reveal">WHERE I HAVE<br><span class="ghost">WORKED</span></h2>
           <div class="rows">
 
-            <div class="row row-static">
+            <a class="row reveal" data-detail="role/majestic-turbo" aria-haspopup="dialog" href="#role/majestic-turbo">
               <div class="row-text">
                 <h3 class="row-title">Majestic Turbo</h3>
                 <p class="row-desc">AI Engineer Intern. Built five internal AI tools, including inventory management,
@@ -326,9 +233,14 @@
                   API and the Google Places API.</p>
                 <p class="row-meta">Jul 2026 to Aug 2026 &nbsp;/&nbsp; Dallas, TX</p>
               </div>
-            </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-            <a class="row" href="https://github.com/Basics-Vault/basicsOS" target="_blank" rel="noopener">
+            <a class="row reveal" data-detail="role/basics" aria-haspopup="dialog"
+              href="https://github.com/Basics-Vault/basicsOS" target="_blank" rel="noopener">
               <div class="row-text">
                 <h3 class="row-title">Basics</h3>
                 <p class="row-desc">Founder and CTO. A self hosted company operating system for early stage startups
@@ -345,7 +257,8 @@
               </svg>
             </a>
 
-            <a class="row" href="https://speakl.ai" target="_blank" rel="noopener">
+            <a class="row reveal" data-detail="role/speakl" aria-haspopup="dialog" href="https://speakl.ai"
+              target="_blank" rel="noopener">
               <div class="row-text">
                 <h3 class="row-title">Speakl Inc.</h3>
                 <p class="row-desc">Co-Founder and CTO. An AI communication platform that gives multimodal feedback on
@@ -361,7 +274,8 @@
               </svg>
             </a>
 
-            <a class="row" href="https://github.com/AakristG/AdFusion" target="_blank" rel="noopener">
+            <a class="row reveal" data-detail="role/acm" aria-haspopup="dialog"
+              href="https://github.com/AakristG/AdFusion" target="_blank" rel="noopener">
               <div class="row-text">
                 <h3 class="row-title">ACM Research</h3>
                 <p class="row-desc">Head Researcher on AdFusion. Fine tuned Stable Diffusion and LLMs on 5,000+ ad
@@ -375,7 +289,7 @@
               </svg>
             </a>
 
-            <div class="row row-static">
+            <a class="row reveal" data-detail="role/itallentii" aria-haspopup="dialog" href="#role/itallentii">
               <div class="row-text">
                 <h3 class="row-title">iTallentii Tech</h3>
                 <p class="row-desc">SWE Intern and Consultant. Built JavaScript and Node.js scraping pipelines across
@@ -383,9 +297,13 @@
                   Node.js APIs, then returned as a consultant to build katars.com and internal tools.</p>
                 <p class="row-meta">Nov 2022 to Jan 2023 &nbsp;/&nbsp; Frisco, TX</p>
               </div>
-            </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-            <div class="row row-static">
+            <a class="row reveal" data-detail="role/donkeyclick" aria-haspopup="dialog" href="#role/donkeyclick">
               <div class="row-text">
                 <h3 class="row-title">DonkeyClick</h3>
                 <p class="row-desc">Co-Founder and Lead Developer. An indie game studio started with two friends. Main
@@ -393,9 +311,14 @@
                   Bounce and Bombkey Thief.</p>
                 <p class="row-meta">Game studio &nbsp;/&nbsp; Unity and C#</p>
               </div>
-            </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
 
-            <a class="row" href="http://shahs-website.vercel.app/" target="_blank" rel="noopener">
+            <a class="row reveal" data-detail="role/cashonomics" aria-haspopup="dialog"
+              href="http://shahs-website.vercel.app/" target="_blank" rel="noopener">
               <div class="row-text">
                 <h3 class="row-title">Cashonomics</h3>
                 <p class="row-desc">Web Developer and Student Advisory Board. Built the full website for a student led
@@ -412,12 +335,120 @@
           </div>
         </section>
 
+        <!-- PROJECTS -->
+        <section class="block" id="projects">
+          <h2 class="display reveal">SELECTED<br><span class="ghost">PROJECTS</span></h2>
+          <div class="rows">
+
+            <a class="row reveal" data-detail="project/playai" aria-haspopup="dialog"
+              href="https://github.com/HarshithMulakala/PlayAI" target="_blank" rel="noopener">
+              <img class="thumb" src="./playai.jpg" alt="PlayAI" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">PlayAI</h3>
+                <p class="row-desc">Turns one text prompt into a playable Unity 2D game.</p>
+                <p class="row-meta">C#, Python, Unity</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/clipthat" aria-haspopup="dialog"
+              href="https://apps.apple.com/us/app/clipthat/id6756780428" target="_blank" rel="noopener">
+              <img class="thumb" src="./ClipThatIcon.png" alt="ClipThat!" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">ClipThat!</h3>
+                <p class="row-desc">Saves the last 30 to 60 seconds of audio with one tap, all on device.</p>
+                <p class="row-meta">Swift, iOS, live on the App Store</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/heymom" aria-haspopup="dialog"
+              href="https://github.com/HarshithMulakala" target="_blank" rel="noopener">
+              <img class="thumb" src="./heymom.svg" alt="HeyMom" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">HeyMom</h3>
+                <p class="row-desc">Real time voice agent. Press to talk, hear a spoken answer back.</p>
+                <p class="row-meta">React Native, FastAPI, WebSockets, Deepgram</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/qbot" aria-haspopup="dialog"
+              href="https://github.com/HarshithMulakala/ReaderBot" target="_blank" rel="noopener">
+              <img class="thumb" src="./qbot.svg" alt="Q Bot" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">Q Bot</h3>
+                <p class="row-desc">Discord bot that takes spoken commands to search and queue music.</p>
+                <p class="row-meta">Node.js, JavaScript, Discord.js</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/currycal" aria-haspopup="dialog"
+              href="https://github.com/HarshithMulakala/CuryCalAI" target="_blank" rel="noopener">
+              <img class="thumb" src="./currycal.png" alt="CurryCal" width="130" height="135" loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">CurryCal</h3>
+                <p class="row-desc">Calorie tracking for South Asian food, counted from a photo of the dish.</p>
+                <p class="row-meta">Python, computer vision</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/resolutions" aria-haspopup="dialog"
+              href="https://apps.apple.com/us/app/5-minute-resolutions/id6756897215" target="_blank" rel="noopener">
+              <img class="thumb" src="./resolutionsicon.png" alt="5 Minute Resolutions" width="130" height="135"
+                loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">5 Minute Resolutions</h3>
+                <p class="row-desc">Set resolutions, then track progress in short daily check ins.</p>
+                <p class="row-meta">Swift, iOS, live on the App Store</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+            <a class="row reveal" data-detail="project/bulletbounce" aria-haspopup="dialog"
+              href="https://cert.itch.io/bullet-bounce" target="_blank" rel="noopener">
+              <img class="thumb is-pixel" src="./bulletbounce.png" alt="Bullet Bounce" width="130" height="135"
+                loading="lazy" />
+              <div class="row-text">
+                <h3 class="row-title">Bullet Bounce</h3>
+                <p class="row-desc">2D puzzle game. Fire one bullet and aim it back into yourself.</p>
+                <p class="row-meta">Unity, C#, built for a game jam</p>
+              </div>
+              <svg class="row-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+
+          </div>
+        </section>
+
         <!-- SKILLS -->
         <section class="block" id="skills">
-          <h2 class="display">TOOLS I<br><span class="ghost">USE DAILY</span></h2>
+          <h2 class="display reveal">TOOLS I<br><span class="ghost">USE DAILY</span></h2>
 
           <div class="tools">
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -430,7 +461,7 @@
               </span>
             </div>
 
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -443,7 +474,7 @@
               </span>
             </div>
 
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -456,7 +487,7 @@
               </span>
             </div>
 
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -469,7 +500,7 @@
               </span>
             </div>
 
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -482,7 +513,7 @@
               </span>
             </div>
 
-            <div class="tool">
+            <div class="tool reveal">
               <span class="tool-tile">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -496,7 +527,7 @@
             </div>
           </div>
 
-          <ul class="chips">
+          <ul class="chips reveal">
             <li>Java</li>
             <li>JavaScript</li>
             <li>C#</li>
@@ -528,9 +559,9 @@
 
         <!-- EDUCATION -->
         <section class="block" id="education">
-          <h2 class="display">WHERE I<br><span class="ghost">STUDY</span></h2>
+          <h2 class="display reveal">WHERE I<br><span class="ghost">STUDY</span></h2>
           <div class="rows">
-            <div class="row row-static">
+            <div class="row row-static reveal">
               <div class="row-text">
                 <h3 class="row-title">The University of Texas at Dallas</h3>
                 <p class="row-desc">B.S. Computer Science. Academic Excellence Scholarship.</p>
@@ -542,17 +573,17 @@
 
         <!-- CONTACT -->
         <section class="block" id="contact">
-          <h2 class="display">LET US<br><span class="ghost">TALK</span></h2>
+          <h2 class="display reveal">LET US<br><span class="ghost">TALK</span></h2>
 
           <div class="contact">
-            <a class="mail-link" href="mailto:harshithmulakala6@gmail.com">harshithmulakala6@gmail.com
+            <a class="mail-link reveal" href="mailto:harshithmulakala6@gmail.com">harshithmulakala6@gmail.com
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 17 17 7" />
                 <path d="M7 7h10v10" />
               </svg>
             </a>
 
-            <form class="form" action="https://formsubmit.co/dmrknife@gmail.com" method="POST">
+            <form class="form reveal" action="https://formsubmit.co/dmrknife@gmail.com" method="POST">
               <input type="hidden" name="_subject" value="Portfolio Contact">
               <input type="hidden" name="_cc" value="harshithmbusiness@gmail.com">
               <input type="hidden" name="_next" value="https://www.harshithm.com/">
@@ -579,7 +610,7 @@
           </div>
         </section>
 
-        <footer class="footer">
+        <footer class="footer reveal">
           <p>
             Harshith Mulakala &nbsp;/&nbsp; Dallas, TX &nbsp;/&nbsp;
             <a href="https://github.com/HarshithMulakala" target="_blank" rel="noopener">GitHub</a> &nbsp;
@@ -590,6 +621,22 @@
         </footer>
 
       </main>
+    </div>
+  </div>
+
+  <!-- DETAIL OVERLAY -->
+  <div class="overlay" id="overlay">
+    <div class="ov-backdrop" data-close></div>
+    <div class="ov-stage" data-close>
+      <div class="ov-panel" role="dialog" aria-modal="true" aria-labelledby="ov-title" tabindex="-1">
+        <button class="ov-close" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6 18 18" />
+            <path d="M18 6 6 18" />
+          </svg>
+        </button>
+        <div class="ov-inner" id="ov-inner"></div>
+      </div>
     </div>
   </div>
 

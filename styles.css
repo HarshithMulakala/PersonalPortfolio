@@ -1,21 +1,28 @@
 /* ==========================================================================
    harshithm.com
    Palette tokens, one family (Poppins), zero borders, three radii.
+   One hover curve, one entrance curve.
    ========================================================================== */
 
 :root {
   --bg: #141517;
+  --elev: #1e2024;
   --text: #ffffff;
   --muted: #9a9088;
   --ghost: rgba(254, 203, 153, 0.13);
   --accent: #e78b34;
+  --accent-dk: #d27f2f;
   --accent-2: #fecb99;
   --cream: #faf7f3;
   --card-text: #141517;
   --card-dim: #6a6b6e;
-  --tint: rgba(255, 255, 255, 0.04);
+  --tint: rgba(255, 255, 255, 0.03);
+  --tint-dark: rgba(20, 21, 23, 0.08);
+  --chip: rgba(255, 255, 255, 0.05);
+  --nav-fill: #1d1e20;
   --field: rgba(254, 203, 153, 0.10);
   --label: #8d8d90;
+  --bar: #2e3138;
 
   --col-gap: 100px;
   --r-lg: 16px;
@@ -25,6 +32,14 @@
   --h1: 100px;
   --h2: 84px;
   --stat: 64px;
+
+  /* The one interaction curve. Overdamped, no bounce. */
+  --ease: cubic-bezier(0.38, 0.12, 0.22, 1);
+  --dur: 380ms;
+
+  /* The one entrance curve. */
+  --ease-in: cubic-bezier(0.44, 0, 0.56, 1);
+  --dur-in: 500ms;
 }
 
 *,
@@ -85,6 +100,15 @@ textarea {
   background: none;
 }
 
+/* Native pointer stays declared everywhere, so the page still reads right
+   when the custom cursor layer is off. */
+a[href],
+button,
+summary,
+[role="button"] {
+  cursor: pointer;
+}
+
 .anchor {
   position: absolute;
   top: 0;
@@ -97,6 +121,47 @@ textarea {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars
+   -------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bar);
+  background-clip: padding-box;
+  border: 2px solid var(--bg);
+  border-radius: var(--r-sm);
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+  background-clip: padding-box;
+}
+
+/* Firefox only. Chrome supports the WebKit pseudo elements above and would
+   otherwise let the standard property win and drop the accent thumb. */
+@supports not selector(::-webkit-scrollbar) {
+
+  html,
+  .ov-inner {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bar) var(--bg);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -200,8 +265,17 @@ textarea {
   height: 48px;
   padding: 0 20px;
   border-radius: var(--r-lg);
-  background: var(--tint);
   z-index: 5;
+}
+
+/* The pill fill is a child box, not the nav background, so the tooltip can
+   park behind it at rest and slide out from underneath. */
+.nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--nav-fill);
 }
 
 .nav a {
@@ -211,12 +285,6 @@ textarea {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  transition: background 150ms ease;
-}
-
-.nav a:hover {
-  background: rgba(255, 255, 255, 0.07);
 }
 
 .nav a svg {
@@ -232,9 +300,9 @@ textarea {
 .nav a::after {
   content: attr(data-label);
   position: absolute;
-  top: 42px;
+  bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
+  z-index: -1;
   padding: 4px 10px;
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, 0.1);
@@ -245,12 +313,27 @@ textarea {
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 150ms ease;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
 .nav a:hover::after,
 .nav a:focus-visible::after {
   opacity: 1;
+  transform: translateX(-50%) translateY(30px);
+}
+
+.nav-dot {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 
 /* --------------------------------------------------------------------------
@@ -265,10 +348,10 @@ textarea {
   gap: 24px;
   padding: 30px 20px;
   border-radius: var(--r-lg);
-  background: var(--cream);
+  background: var(--accent);
   color: var(--card-text);
   overflow: hidden;
-  animation: drop-in 500ms cubic-bezier(0.44, 0, 0.56, 1) both;
+  animation: drop-in var(--dur-in) var(--ease-in) both;
 }
 
 .card-arc {
@@ -280,7 +363,7 @@ textarea {
   height: 180px;
   max-width: none;
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--card-text);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 9 15;
@@ -291,7 +374,7 @@ textarea {
   width: 240px;
   height: 284px;
   border-radius: var(--r-lg);
-  background: var(--accent);
+  background: var(--card-text);
   overflow: hidden;
   flex: none;
 }
@@ -321,7 +404,7 @@ textarea {
   height: 44px;
   margin: 10px 0;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--cream);
   flex: none;
 }
 
@@ -329,12 +412,12 @@ textarea {
   position: relative;
   width: 22px;
   height: 22px;
-  fill: #ffffff;
+  fill: var(--card-text);
 }
 
 .card-bio {
   position: relative;
-  color: var(--card-dim);
+  color: rgba(20, 21, 23, 0.75);
   font-size: 17px;
   font-weight: 500;
   line-height: 1.25;
@@ -344,24 +427,33 @@ textarea {
 .card-social {
   position: relative;
   display: flex;
-  gap: 22px;
+  gap: 14px;
+}
+
+.card-social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(20, 21, 23, 0);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.card-social a:hover {
+  background-color: var(--tint-dark);
 }
 
 .card-social a svg {
   width: 24px;
   height: 24px;
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--card-text);
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
-  color: var(--accent);
-  transition: transform 150ms ease, opacity 150ms ease;
-}
-
-.card-social a:hover svg {
-  transform: translateY(-2px);
-  opacity: 0.75;
+  color: var(--card-text);
 }
 
 /* --------------------------------------------------------------------------
@@ -391,10 +483,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 60px;
-}
-
-.hero-title {
-  animation: drop-in 500ms cubic-bezier(0.44, 0, 0.56, 1) 200ms both;
+  animation: drop-in var(--dur-in) var(--ease-in) 100ms both;
 }
 
 .hero-intro {
@@ -424,7 +513,8 @@ textarea {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
-  transition: opacity 150ms ease;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .text-link svg {
@@ -435,23 +525,14 @@ textarea {
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 150ms ease;
 }
 
-.text-link:hover svg {
-  transform: translate(2px, -2px);
+.text-link:hover {
+  text-decoration-line: underline;
 }
 
 .text-link.quiet {
   color: var(--muted);
-}
-
-.text-link.quiet:hover {
-  color: #ffffff;
-}
-
-.text-link.quiet:hover svg {
-  transform: translateX(3px);
 }
 
 /* Stats */
@@ -497,12 +578,11 @@ textarea {
   padding: 36px 22px 22px;
   border-radius: var(--r-md);
   overflow: hidden;
-  transition: transform 150ms ease;
 }
 
 .promo-a {
   flex: 300 1 0;
-  background: var(--accent);
+  background: var(--elev);
   color: #ffffff;
 }
 
@@ -510,10 +590,6 @@ textarea {
   flex: 366 1 0;
   background: var(--accent-2);
   color: var(--card-text);
-}
-
-.promo-card:hover {
-  transform: translateY(-3px);
 }
 
 .promo-pattern {
@@ -526,7 +602,7 @@ textarea {
 }
 
 .promo-a .promo-pattern {
-  stroke: rgba(0, 0, 0, 0.09);
+  stroke: rgba(255, 255, 255, 0.06);
 }
 
 .promo-b .promo-pattern {
@@ -543,6 +619,10 @@ textarea {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.promo-a .promo-icon {
+  stroke: var(--accent);
 }
 
 .promo-title {
@@ -562,15 +642,45 @@ textarea {
   width: 34px;
   height: 34px;
   fill: none;
-  stroke: currentColor;
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 150ms ease;
 }
 
-.promo-card:hover .promo-arrow {
-  transform: translateX(3px);
+.pa-box {
+  fill: transparent;
+  transition: fill var(--dur) var(--ease), stroke var(--dur) var(--ease);
+}
+
+.pa-glyph {
+  transition: stroke var(--dur) var(--ease);
+}
+
+.promo-a .pa-box,
+.promo-a .pa-glyph {
+  stroke: var(--accent);
+}
+
+.promo-a:hover .pa-box {
+  fill: #ffffff;
+  stroke: #ffffff;
+}
+
+.promo-a:hover .pa-glyph {
+  stroke: var(--elev);
+}
+
+.promo-b .pa-box,
+.promo-b .pa-glyph {
+  stroke: var(--card-text);
+}
+
+.promo-b:hover .pa-box {
+  fill: var(--card-text);
+}
+
+.promo-b:hover .pa-glyph {
+  stroke: var(--accent-2);
 }
 
 /* --------------------------------------------------------------------------
@@ -599,12 +709,13 @@ textarea {
   gap: 20px;
   padding: 20px 56px 20px 16px;
   border-radius: var(--r-lg);
-  background: transparent;
-  transition: background 150ms ease;
+  background: rgba(255, 255, 255, 0);
+  transition: background-color var(--dur) var(--ease);
 }
 
-a.row:hover {
-  background: var(--tint);
+a.row:hover,
+a.row:focus-visible {
+  background-color: var(--tint);
 }
 
 .thumb {
@@ -614,6 +725,14 @@ a.row:hover {
   border-radius: var(--r-sm);
   object-fit: cover;
   background: #1c1d20;
+}
+
+/* Pixel art keeps its hard edges at every size. */
+.is-pixel img,
+img.is-pixel {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 .row-text {
@@ -654,11 +773,13 @@ a.row:hover {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 150ms ease;
+  transition: transform var(--dur) var(--ease);
 }
 
-a.row:hover .row-arrow {
-  transform: translate(2px, -2px);
+/* The arrow leaves along its own axis. */
+a.row:hover .row-arrow,
+a.row:focus-visible .row-arrow {
+  transform: translate(10px, -12px);
 }
 
 /* --------------------------------------------------------------------------
@@ -725,7 +846,7 @@ a.row:hover .row-arrow {
 .chips li {
   padding: 8px 14px;
   border-radius: var(--r-sm);
-  background: var(--tint);
+  background: var(--chip);
   color: var(--muted);
   font-size: 14px;
   line-height: 1.2;
@@ -750,7 +871,8 @@ a.row:hover .row-arrow {
   font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
-  transition: color 150ms ease;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 
 .mail-link svg {
@@ -762,15 +884,10 @@ a.row:hover .row-arrow {
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 150ms ease;
 }
 
 .mail-link:hover {
-  color: var(--accent);
-}
-
-.mail-link:hover svg {
-  transform: translate(2px, -2px);
+  text-decoration-line: underline;
 }
 
 .form {
@@ -808,7 +925,8 @@ a.row:hover .row-arrow {
   color: #ffffff;
   font-size: 14px;
   line-height: 1.2;
-  transition: background 150ms ease;
+  box-shadow: inset 0 0 0 1px rgba(231, 139, 52, 0);
+  transition: background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .field input {
@@ -828,7 +946,8 @@ a.row:hover .row-arrow {
 
 .field input:focus,
 .field textarea:focus {
-  background: rgba(254, 203, 153, 0.16);
+  background-color: rgba(254, 203, 153, 0.16);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .submit {
@@ -840,12 +959,11 @@ a.row:hover .row-arrow {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
-  cursor: pointer;
-  transition: filter 150ms ease;
+  transition: background-color var(--dur) var(--ease);
 }
 
 .submit:hover {
-  filter: brightness(1.08);
+  background-color: var(--accent-dk);
 }
 
 /* --------------------------------------------------------------------------
@@ -862,11 +980,295 @@ a.row:hover .row-arrow {
 
 .footer a {
   color: var(--accent);
-  transition: opacity 150ms ease;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .footer a:hover {
-  opacity: 0.75;
+  text-decoration-line: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Detail overlay
+   -------------------------------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+}
+
+.overlay.is-open {
+  display: block;
+}
+
+.ov-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 21, 23, 0.7);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity var(--dur-in) var(--ease-in);
+}
+
+.overlay.is-visible .ov-backdrop {
+  opacity: 1;
+}
+
+.ov-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.ov-panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 696px;
+  max-height: 100%;
+  border-radius: var(--r-lg);
+  background: var(--elev);
+  overflow: hidden;
+  opacity: 0.001;
+  transform: translateY(24px);
+  transition: opacity var(--dur-in) var(--ease-in), transform var(--dur-in) var(--ease-in);
+}
+
+.overlay.is-visible .ov-panel {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* The panel takes focus on open. That is a scroll container, not a control,
+   so it must not paint a focus ring. */
+.ov-panel:focus,
+.ov-panel:focus-visible {
+  outline: none;
+}
+
+.overlay.is-closing .ov-backdrop,
+.overlay.is-closing .ov-panel {
+  transition-duration: 250ms;
+}
+
+.ov-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 30px;
+}
+
+.ov-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(20, 21, 23, 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.ov-close:hover {
+  background-color: rgba(20, 21, 23, 0.9);
+}
+
+.ov-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.ov-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.ov-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ov-media.is-contain {
+  padding: 26px;
+}
+
+.ov-media.is-contain img {
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--r-md);
+}
+
+.ov-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 180px;
+  padding: 0 28px;
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.ov-band-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 3;
+}
+
+.ov-band-name {
+  position: relative;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.ov-band-mark {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 20px;
+  height: 20px;
+  fill: var(--accent);
+}
+
+.ov-title {
+  margin-top: 24px;
+  font-size: 50px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ov-meta {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.ov-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 34px;
+}
+
+.ov-body p {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.ov-chips {
+  margin-top: 30px;
+}
+
+.ov-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-top: 34px;
+  padding: 0 20px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.ov-cta:hover {
+  background-color: var(--accent-dk);
+}
+
+.ov-cta svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --------------------------------------------------------------------------
+   Custom cursor
+   -------------------------------------------------------------------------- */
+
+.cursor-ring,
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform;
+  transition: opacity 160ms linear;
+}
+
+.cursor-ring {
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--accent);
+}
+
+html.cursor-live .cursor-ring,
+html.cursor-live .cursor-dot {
+  opacity: 1;
+}
+
+html.cursor-live.cursor-text .cursor-ring,
+html.cursor-live.cursor-text .cursor-dot {
+  opacity: 0;
+}
+
+html.custom-cursor,
+html.custom-cursor * {
+  cursor: none;
+}
+
+html.custom-cursor input,
+html.custom-cursor textarea {
+  cursor: text;
 }
 
 /* --------------------------------------------------------------------------
@@ -883,6 +1285,29 @@ a.row:hover .row-arrow {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0.001;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.js .reveal {
+  opacity: 0.001;
+  transform: translateY(20px);
+}
+
+/* An animation, not a transition. A transition shorthand here would replace
+   the row's own background-color transition and make the hover tint snap. */
+.js .reveal.is-in {
+  animation: rise-in var(--dur-in) var(--ease-in) both;
 }
 
 /* --------------------------------------------------------------------------
@@ -985,6 +1410,40 @@ a.row:hover .row-arrow {
   }
 }
 
+/* Detail overlay becomes a full height sheet. */
+@media (max-width: 809px) {
+  .ov-stage {
+    padding: 0;
+  }
+
+  .ov-panel {
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .ov-inner {
+    padding: 20px 20px 40px;
+  }
+
+  .ov-title {
+    font-size: 34px;
+  }
+
+  .ov-band {
+    height: 140px;
+    padding: 0 20px;
+  }
+
+  .ov-band-name {
+    font-size: 28px;
+  }
+
+  .ov-body p {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 620px) {
   :root {
     --h1: 52px;
@@ -1056,11 +1515,17 @@ a.row:hover .row-arrow {
     font-size: 30px;
   }
 
+  .card-social {
+    gap: 8px;
+  }
+
   .field-row {
     gap: 12px;
   }
 }
 
+/* Entrances, reveals and cursor trailing go away. Hover feedback stays,
+   because a hover state is information, not decoration. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1071,11 +1536,24 @@ a.row:hover .row-arrow {
   }
 
   .card,
-  .hero-title {
+  .hero {
     animation: none;
   }
 
-  * {
-    transition-duration: 0.01ms !important;
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .js .reveal.is-in {
+    animation: none;
+  }
+
+  .ov-panel {
+    transform: none;
+  }
+
+  .overlay.is-visible .ov-panel {
+    transform: none;
   }
 }
