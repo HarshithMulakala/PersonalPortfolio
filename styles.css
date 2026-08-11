@@ -374,7 +374,7 @@ summary,
   width: 240px;
   height: 284px;
   border-radius: var(--r-lg);
-  background: #faf7f3;
+  background: var(--card-text);
   overflow: hidden;
   flex: none;
 }
