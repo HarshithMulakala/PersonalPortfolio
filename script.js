@@ -1,6 +1,6 @@
 /* ==========================================================================
    harshithm.com
-   Starfield, scroll reveals, scroll spy, detail overlays, custom cursor.
+   Starfield, scroll reveals, scroll spy, detail overlays.
    No dependencies.
    ========================================================================== */
 
@@ -8,7 +8,6 @@
   "use strict";
 
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-  var finePointer = window.matchMedia("(pointer: fine)");
 
   function each(list, fn) {
     Array.prototype.forEach.call(list, fn);
@@ -541,102 +540,4 @@
     sync(null);
   });
 
-  /* ------------------------------------------------------------------ *
-   * Custom cursor. Fine pointers only, off under reduced motion.
-   * ------------------------------------------------------------------ */
-
-  guard(function () {
-    if (!finePointer.matches || reduce.matches) return;
-
-    var root = document.documentElement;
-    var ring = document.createElement("div");
-    var dot = document.createElement("div");
-    ring.className = "cursor-ring";
-    dot.className = "cursor-dot";
-    ring.setAttribute("aria-hidden", "true");
-    dot.setAttribute("aria-hidden", "true");
-    document.body.appendChild(ring);
-    document.body.appendChild(dot);
-    root.classList.add("custom-cursor");
-
-    var HIT = "a[href], button, .row, [role='button'], summary";
-    var TEXT = "input, textarea";
-
-    var mx = window.innerWidth / 2;
-    var my = window.innerHeight / 2;
-    var rx = mx;
-    var ry = my;
-    var ringScale = 1;
-    var dotScale = 1;
-    var ringTarget = 1;
-    var dotTarget = 1;
-    var running = false;
-    var live = false;
-
-    function frame() {
-      rx += (mx - rx) * 0.19;
-      ry += (my - ry) * 0.19;
-      ringScale += (ringTarget - ringScale) * 0.18;
-      dotScale += (dotTarget - dotScale) * 0.22;
-
-      ring.style.transform = "translate3d(" + rx + "px," + ry + "px,0) scale(" + ringScale + ")";
-      dot.style.transform = "translate3d(" + mx + "px," + my + "px,0) scale(" + dotScale + ")";
-
-      var settled = Math.abs(mx - rx) < 0.15 && Math.abs(my - ry) < 0.15 &&
-        Math.abs(ringTarget - ringScale) < 0.005 && Math.abs(dotTarget - dotScale) < 0.005;
-      if (settled) {
-        rx = mx;
-        ry = my;
-        ringScale = ringTarget;
-        dotScale = dotTarget;
-        ring.style.transform = "translate3d(" + rx + "px," + ry + "px,0) scale(" + ringScale + ")";
-        dot.style.transform = "translate3d(" + mx + "px," + my + "px,0) scale(" + dotScale + ")";
-        running = false;
-        return;
-      }
-      window.requestAnimationFrame(frame);
-    }
-
-    function start() {
-      if (running) return;
-      running = true;
-      window.requestAnimationFrame(frame);
-    }
-
-    document.addEventListener("mousemove", function (event) {
-      mx = event.clientX;
-      my = event.clientY;
-      if (!live) {
-        live = true;
-        rx = mx;
-        ry = my;
-        root.classList.add("cursor-live");
-      }
-
-      var target = event.target;
-      var overText = target.closest ? !!target.closest(TEXT) : false;
-      root.classList.toggle("cursor-text", overText);
-
-      var overHit = !overText && target.closest ? !!target.closest(HIT) : false;
-      ringTarget = overHit ? 1.6 : 1;
-      dotTarget = overHit ? 0.7 : 1;
-
-      start();
-    }, { passive: true });
-
-    document.addEventListener("mouseleave", function () {
-      root.classList.remove("cursor-live");
-      live = false;
-    });
-
-    document.addEventListener("mouseenter", function () {
-      if (!live) return;
-      root.classList.add("cursor-live");
-    });
-
-    window.addEventListener("blur", function () {
-      root.classList.remove("cursor-live");
-      live = false;
-    });
-  });
 })();

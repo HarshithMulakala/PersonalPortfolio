@@ -100,8 +100,7 @@ textarea {
   background: none;
 }
 
-/* Native pointer stays declared everywhere, so the page still reads right
-   when the custom cursor layer is off. */
+/* Interactive elements always carry the native pointer. */
 a[href],
 button,
 summary,
@@ -1502,57 +1501,6 @@ a.row:focus-visible .row-arrow {
 }
 
 /* --------------------------------------------------------------------------
-   Custom cursor
-   -------------------------------------------------------------------------- */
-
-.cursor-ring,
-.cursor-dot {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 9999;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform;
-  transition: opacity 160ms linear;
-}
-
-.cursor-ring {
-  width: 28px;
-  height: 28px;
-  margin: -14px 0 0 -14px;
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-
-.cursor-dot {
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  background: var(--accent);
-}
-
-html.cursor-live .cursor-ring,
-html.cursor-live .cursor-dot {
-  opacity: 1;
-}
-
-html.cursor-live.cursor-text .cursor-ring,
-html.cursor-live.cursor-text .cursor-dot {
-  opacity: 0;
-}
-
-html.custom-cursor,
-html.custom-cursor * {
-  cursor: none;
-}
-
-html.custom-cursor input,
-html.custom-cursor textarea {
-  cursor: text;
-}
-
-/* --------------------------------------------------------------------------
    Motion
    -------------------------------------------------------------------------- */
 
@@ -1872,7 +1820,7 @@ html.custom-cursor textarea {
   }
 }
 
-/* Entrances, reveals and cursor trailing go away. Hover feedback stays,
+/* Entrances and reveals go away. Hover feedback stays,
    because a hover state is information, not decoration. */
 @media (prefers-reduced-motion: reduce) {
   html {
