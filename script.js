@@ -57,7 +57,7 @@
 
   guard(function () {
     window.__revealReady = true;
-    var targets = document.querySelectorAll(".reveal");
+    var targets = document.querySelectorAll(".reveal, .drop");
     if (reduce.matches || !("IntersectionObserver" in window)) {
       each(targets, function (el) { el.classList.add("is-in"); });
       return;
@@ -85,6 +85,24 @@
   });
 
   /* ------------------------------------------------------------------ *
+   * Wordmark belongs to the header scene. The pinned nav pill stays, the
+   * HM mark fades out once the scene is scrolled past so it never sits on
+   * top of the sticky profile card.
+   * ------------------------------------------------------------------ */
+
+  guard(function () {
+    var bar = document.querySelector(".scene-top");
+    var scene = document.querySelector(".scene");
+    if (!bar || !scene) return;
+    function update() {
+      var y = window.pageYOffset || document.documentElement.scrollTop;
+      bar.classList.toggle("is-scrolled", y > scene.offsetHeight - 90);
+    }
+    window.addEventListener("scroll", update, { passive: true });
+    update();
+  });
+
+  /* ------------------------------------------------------------------
    * Scroll spy. One dot travels under the active nav icon.
    * ------------------------------------------------------------------ */
 
@@ -96,7 +114,10 @@
     var items = [];
     each(nav.querySelectorAll("a[href^='#']"), function (link) {
       var id = link.getAttribute("href").slice(1);
-      var section = id === "top" ? document.querySelector(".hero") : document.getElementById(id);
+      /* "Home" now points at the header scene, which is the first viewport. */
+      var section = id === "top"
+        ? (document.querySelector(".scene") || document.querySelector(".hero"))
+        : document.getElementById(id);
       if (section) items.push({ link: link, section: section, top: 0 });
     });
     if (!items.length) return;
