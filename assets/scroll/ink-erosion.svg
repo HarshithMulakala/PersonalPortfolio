@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <mask id="grain">
+      <rect width="128" height="128" fill="white"/>
+      <g fill="black" opacity=".82">
+        <circle cx="7" cy="19" r=".55"/><circle cx="19" cy="7" r=".4"/><circle cx="28" cy="31" r=".7"/>
+        <circle cx="39" cy="13" r=".45"/><circle cx="53" cy="24" r=".6"/><circle cx="67" cy="9" r=".38"/>
+        <circle cx="80" cy="28" r=".52"/><circle cx="96" cy="15" r=".68"/><circle cx="114" cy="34" r=".42"/>
+        <circle cx="13" cy="48" r=".7"/><circle cx="33" cy="56" r=".42"/><circle cx="48" cy="43" r=".58"/>
+        <circle cx="64" cy="60" r=".46"/><circle cx="76" cy="46" r=".74"/><circle cx="102" cy="57" r=".5"/>
+        <circle cx="121" cy="49" r=".36"/><circle cx="6" cy="80" r=".42"/><circle cx="25" cy="72" r=".64"/>
+        <circle cx="43" cy="89" r=".5"/><circle cx="57" cy="77" r=".38"/><circle cx="72" cy="94" r=".66"/>
+        <circle cx="88" cy="73" r=".44"/><circle cx="109" cy="88" r=".62"/><circle cx="123" cy="71" r=".48"/>
+        <circle cx="17" cy="111" r=".54"/><circle cx="35" cy="103" r=".4"/><circle cx="54" cy="119" r=".7"/>
+        <circle cx="70" cy="108" r=".44"/><circle cx="89" cy="122" r=".56"/><circle cx="101" cy="106" r=".38"/>
+        <circle cx="119" cy="117" r=".65"/>
+      </g>
+      <g stroke="black" stroke-linecap="round" opacity=".46">
+        <path d="M11 37l2.1-.4M44 68l1.8.2M92 42l2.4-.3M14 95l2 .1M82 101l2.2-.4M111 10l1.7.2"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="128" height="128" fill="white" mask="url(#grain)"/>
+</svg>

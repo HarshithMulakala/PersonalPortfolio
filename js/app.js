@@ -6,17 +6,26 @@
 
 import { SITE } from "./data.js";
 import * as ui from "./ui.js";
+import {
+  qualityOverride,
+  selectQualityTier,
+} from "./quality-config.mjs";
 
 /* ------------------------------------------------------------------ */
 /* Capability detection                                                */
 /* ------------------------------------------------------------------ */
 
-function hasWebGL2() {
+function readGraphicsCapabilities() {
   try {
     const c = document.createElement("canvas");
-    return !!(window.WebGL2RenderingContext && c.getContext("webgl2"));
+    const gl = window.WebGL2RenderingContext && c.getContext("webgl2");
+    if (!gl) return { webgl2: false, maxTextureSize: 0 };
+    const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+    const loseContext = gl.getExtension("WEBGL_lose_context");
+    if (loseContext) loseContext.loseContext();
+    return { webgl2: true, maxTextureSize };
   } catch (e) {
-    return false;
+    return { webgl2: false, maxTextureSize: 0 };
   }
 }
 
@@ -28,8 +37,19 @@ function isMobile() {
 }
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const webglOk = hasWebGL2();
-const mobile = isMobile();
+const graphics = readGraphicsCapabilities();
+const webglOk = graphics.webgl2;
+const selectedQuality = selectQualityTier({
+  override: qualityOverride(window.location.search),
+  viewportWidth: window.innerWidth,
+  viewportHeight: window.innerHeight,
+  devicePixelRatio: window.devicePixelRatio || 1,
+  deviceMemory: navigator.deviceMemory,
+  hardwareConcurrency: navigator.hardwareConcurrency,
+  maxTextureSize: graphics.maxTextureSize,
+  coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+}, window.localStorage);
+const mobile = isMobile() || selectedQuality === "mobile";
 
 /* ------------------------------------------------------------------ */
 /* Voyage lifecycle state                                              */
@@ -111,7 +131,7 @@ async function ensureVoyageInited() {
     inited = true;
     await mod.initVoyage({
       canvas: document.getElementById("voyage-canvas"),
-      quality: mobile ? "low" : "high",
+      quality: selectedQuality,
       reducedMotion,
       onReady() {
         ready = true;
@@ -165,11 +185,10 @@ async function ensureVoyageInited() {
       onBeatAnchor(payload) {
         ui.positionBeat(payload);
       },
-      onDocked(islandId) {
-        // Legacy dock path (pre beat-tour voyage builds): open the side panel.
-        dockedIsland = islandId;
-        maybeMutedDockHint();
-        ui.openPanel(islandId);
+      onTourEnd() {
+        // The voyage emits this as soon as undocking starts. Clear the beat UI
+        // now instead of leaving it over the one-second return dolly.
+        ui.hideBeat();
       },
       onUndocked() {
         dockedIsland = null;
@@ -327,6 +346,7 @@ function fallbackToClassic(scrollTop) {
   }
   html.classList.remove("auto-entry");
   document.body.classList.remove("in-voyage", "in-attract", "entry-lift");
+  ui.exitVoyageUI();
   if (scrollTop) window.scrollTo({ top: 0, behavior: "auto" });
 }
 

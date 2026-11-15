@@ -27,7 +27,11 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&amp;family=Cinzel:wght@600;800&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=JetBrains+Mono:wght@500&amp;family=Manrope:wght@400;500;700&amp;family=Pinyon+Script&amp;family=Pirata+One&amp;display=swap" />
+
+  <link rel="preload" href="./assets/scroll/parchment-texture.svg" as="image" type="image/svg+xml" />
+  <link rel="preload" href="./assets/scroll/parchment-mask.svg" as="image" type="image/svg+xml" />
+  <link rel="preload" href="./assets/scroll/parchment-edge.svg" as="image" type="image/svg+xml" />
 
   <link rel="stylesheet" href="./css/main.css" />
 
@@ -64,85 +68,203 @@
   <!-- ===== Auto entry layer: unrolling scroll map loader ===== -->
   <div id="entry" aria-hidden="true">
     <div class="entry-backdrop" aria-hidden="true"></div>
+    <div class="entry-dust" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
     <div class="scroll" role="status" aria-label="Charting the route">
       <span class="scroll-roll scroll-roll-top" aria-hidden="true"></span>
       <div class="scroll-body">
         <div class="scroll-sheet">
+          <span class="paper-wrap paper-wrap-top" aria-hidden="true"></span>
+          <span class="paper-wrap paper-wrap-bottom" aria-hidden="true"></span>
+          <span class="parchment-cut parchment-cut-one" aria-hidden="true"></span>
+          <span class="parchment-cut parchment-cut-two" aria-hidden="true"></span>
+          <span class="parchment-curl" aria-hidden="true"></span>
           <div class="scroll-inner">
             <div class="scroll-head">
-              <p class="scroll-title">Harshith Mulakala</p>
+              <p class="scroll-kicker" aria-hidden="true">The chart and logbook of</p>
+              <p class="scroll-title"><span aria-hidden="true">H</span>arshith<br />Mulakala</p>
               <p class="scroll-identity">Founder and full-stack engineer building AI products that ship.</p>
             </div>
-            <ul class="scroll-bullets"></ul>
+            <div class="scroll-log">
+              <p class="scroll-log-heading">Entries from the Captain's Log</p>
+              <svg class="ink-rule" viewBox="0 0 600 12" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M2 7C66 5 117 8 178 6S305 8 367 6 486 4 598 7" />
+                <path d="M3 9C88 8 166 10 246 8S415 9 597 8" />
+              </svg>
+              <ul class="scroll-bullets"></ul>
+              <p class="scroll-log-note" aria-hidden="true">Five provinces. One unfinished voyage.</p>
+            </div>
             <div class="scroll-map">
-              <svg viewBox="0 0 400 320" role="img" aria-label="A hand drawn chart of the five islands">
-              <g class="map-compass" transform="translate(54,52)">
-                <circle r="16" fill="none" stroke-width="1.1" />
-                <path d="M0,-16 L3.5,-3 L0,0 L-3.5,-3 Z" fill="#4a3826" />
-                <path d="M0,16 L3.5,3 L0,0 L-3.5,3 Z" fill="#8a6a45" />
-                <path d="M16,0 L3,3.5 L0,0 L3,-3.5 Z" fill="#8a6a45" />
-                <path d="M-16,0 L-3,3.5 L0,0 L-3,-3.5 Z" fill="#8a6a45" />
-                <text class="map-compass-n" x="0" y="-19" text-anchor="middle">N</text>
-              </g>
+              <svg viewBox="0 0 430 470" role="img" aria-label="A faded hand-drawn island chart with a compass rose, dotted route, ship, skull, and red treasure mark">
+                <defs>
+                  <clipPath id="island-coast-clip">
+                    <path d="M108 346C78 323 83 288 105 264C79 231 92 194 124 181C111 148 140 113 176 119C194 83 236 76 263 102C292 82 328 101 330 137C362 142 377 177 357 203C386 226 382 268 351 286C359 320 330 348 296 342C275 374 233 376 208 350C175 370 137 362 123 337Z"/>
+                  </clipPath>
+                  <pattern id="coast-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(31)">
+                    <path d="M0 1H8" class="map-hatch-line"/>
+                  </pattern>
+                  <filter id="ink-wobble" x="-8%" y="-8%" width="116%" height="116%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="17" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.75" xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                </defs>
 
-              <path class="map-wave" d="M150,150 q6,-6 12,0 q6,6 12,0" />
-              <path class="map-wave" d="M240,180 q6,-6 12,0 q6,6 12,0" />
-              <path class="map-wave" d="M120,255 q6,-6 12,0 q6,6 12,0" />
-              <path class="map-wave" d="M250,90 q6,-6 12,0 q6,6 12,0" />
+                <path class="chart-frame" d="M24 19C102 13 171 18 246 16S362 12 407 22C414 96 408 163 412 228S414 365 402 444C317 451 243 445 174 449S74 451 22 441C17 354 22 280 18 207S17 78 24 19Z" />
+                <path class="chart-frame-echo" d="M31 27C121 22 198 25 276 23S367 20 400 28M400 36C405 125 401 203 405 281S406 384 396 435" />
 
-              <path class="route-guide" d="M66,210 L120,96 L212,60 L322,120 L300,238" />
-              <path id="entry-route" class="route-progress" d="M66,210 L120,96 L212,60 L322,120 L300,238" />
+                <text class="map-title" x="205" y="48" text-anchor="middle">Insula Mulakala</text>
 
-              <g class="map-isle-group">
-                <ellipse class="map-isle-sh" cx="66" cy="216" rx="26" ry="8" />
-                <ellipse class="map-isle" cx="66" cy="210" rx="24" ry="13" />
-                <text class="map-num" x="66" y="214" text-anchor="middle">I</text>
-                <text class="map-name" x="66" y="237" text-anchor="middle">Origins</text>
-              </g>
-              <g class="map-isle-group">
-                <ellipse class="map-isle-sh" cx="120" cy="102" rx="24" ry="8" />
-                <ellipse class="map-isle" cx="120" cy="96" rx="22" ry="12" />
-                <text class="map-num" x="120" y="100" text-anchor="middle">II</text>
-                <text class="map-name" x="120" y="122" text-anchor="middle">The Forge</text>
-              </g>
-              <g class="map-isle-group">
-                <ellipse class="map-isle-sh" cx="212" cy="66" rx="25" ry="8" />
-                <ellipse class="map-isle" cx="212" cy="60" rx="23" ry="12" />
-                <text class="map-num" x="212" y="64" text-anchor="middle">III</text>
-                <text class="map-name" x="212" y="86" text-anchor="middle">The Labors</text>
-              </g>
-              <g class="map-isle-group">
-                <ellipse class="map-isle-sh" cx="322" cy="126" rx="25" ry="8" />
-                <ellipse class="map-isle" cx="322" cy="120" rx="23" ry="12" />
-                <text class="map-num" x="322" y="124" text-anchor="middle">IV</text>
-                <text class="map-name" x="322" y="146" text-anchor="middle">The Voyages</text>
-              </g>
-              <g class="map-isle-group">
-                <ellipse class="map-isle-sh" cx="300" cy="244" rx="25" ry="8" />
-                <ellipse class="map-isle" cx="300" cy="238" rx="23" ry="12" />
-                <text class="map-num" x="300" y="242" text-anchor="middle">V</text>
-                <text class="map-name" x="300" y="264" text-anchor="middle">The Oracle</text>
-              </g>
+                <g class="map-compass" transform="translate(348 69) rotate(-5)" aria-hidden="true">
+                  <circle r="32"/><circle r="25"/><circle r="5"/>
+                  <path class="compass-dark" d="M0-42L6-7 0 0-6-7ZM0 42L-6 7 0 0 6 7ZM42 0L7 6 0 0 7-6ZM-42 0L-7-6 0 0-7 6Z"/>
+                  <path class="compass-light" d="M0-31L-4-6 0 0V-31ZM31 0L6-4 0 0H31ZM0 31L4 6 0 0V31ZM-31 0L-6 4 0 0H-31Z"/>
+                  <path d="M-20-20L-4-5M20-20L4-5M20 20L4 5M-20 20L-4 5"/>
+                  <text class="map-compass-n" x="0" y="-47" text-anchor="middle">N</text>
+                </g>
 
-              <g id="entry-ship" class="map-ship" transform="translate(66,210)">
-                <path d="M-7,2 L7,2 L4.5,7 L-4.5,7 Z" />
-                <rect x="-0.6" y="-9" width="1.2" height="11" />
-                <path d="M0.6,-8.5 L6,-2 L0.6,-2 Z" />
-              </g>
+                <g class="map-island" filter="url(#ink-wobble)">
+                  <path class="island-hatch" clip-path="url(#island-coast-clip)" fill="url(#coast-hatch)" d="M64 66H388V388H64Z"/>
+                  <path class="island-fill" d="M108 346C78 323 83 288 105 264C79 231 92 194 124 181C111 148 140 113 176 119C194 83 236 76 263 102C292 82 328 101 330 137C362 142 377 177 357 203C386 226 382 268 351 286C359 320 330 348 296 342C275 374 233 376 208 350C175 370 137 362 123 337Z"/>
+                  <path class="coast-echo" d="M105 354C70 328 73 288 96 262M116 181C100 144 136 103 175 110M185 109C205 69 242 68 268 93M278 94C311 73 345 99 340 136M340 140C375 144 392 181 369 207M367 213C398 239 391 279 361 293M358 299C363 334 332 365 296 352M288 352C263 385 224 387 202 360"/>
+                  <path class="island-detail" d="M151 279c28-18 52-22 83-14M253 145c23 13 32 30 36 53M135 216c18 8 34 10 53 7M285 306c18-11 32-12 49-8"/>
+                </g>
+
+                <g class="map-skull" transform="translate(91 116) rotate(-7)" aria-hidden="true">
+                  <path d="M-8-4C-8-13 8-13 8-4C8 1 5 3 3 5V10H-3V5C-5 3-8 1-8-4ZM-4-3h1M4-3h-1M-2 2h4M-11 13L11 2M-11 2L11 13"/>
+                </g>
+
+                <path class="route-guide" d="M72 399C102 367 106 328 131 300S176 272 198 241S219 190 251 174S300 178 320 206S329 264 300 292"/>
+                <path id="entry-route" class="route-progress" d="M72 399C102 367 106 328 131 300S176 272 198 241S219 190 251 174S300 178 320 206S329 264 300 292"/>
+                <g class="treasure-x" transform="translate(300 292) rotate(-7)" aria-hidden="true">
+                  <path d="M-11-11L11 11M11-11L-11 11"/>
+                </g>
+                <g id="entry-ship" class="map-ship" transform="translate(72 399)">
+                  <path class="ship-hull" d="M-13 2C-6 6 6 6 13 2L8 10H-8Z"/>
+                  <path d="M0 2V-16M1-14C10-11 12-4 1-3ZM-1-12C-8-10-10-5-1-4Z"/>
+                  <path class="ship-wake" d="M-12 12q6-3 12 0t12 0"/>
+                </g>
               </svg>
             </div>
             <div class="scroll-foot">
               <button id="scroll-start" class="scroll-start" type="button" disabled>
+                <span class="scroll-seal-mark" aria-hidden="true">✦</span>
                 <span class="scroll-start-label">Start Voyage</span>
               </button>
             </div>
           </div>
+          <div class="scroll-relief scroll-relief-shadow" aria-hidden="true">
+            <svg viewBox="0 0 1000 700" preserveAspectRatio="none">
+              <rect class="scroll-relief-map" x="-12" y="-12" width="1024" height="724" rx="4" filter="url(#scroll-surface-relief)" />
+            </svg>
+          </div>
+          <div class="scroll-relief scroll-relief-highlight" aria-hidden="true">
+            <svg viewBox="0 0 1000 700" preserveAspectRatio="none">
+              <rect class="scroll-relief-map" x="-12" y="-12" width="1024" height="724" rx="4" filter="url(#scroll-surface-relief)" />
+            </svg>
+          </div>
+          <svg class="scroll-filter-defs" width="0" height="0" aria-hidden="true" focusable="false">
+            <defs>
+              <filter id="scroll-surface-relief" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+                <feTurbulence type="fractalNoise" baseFrequency="0.006 0.010" numOctaves="3" seed="37" result="broad-folds" />
+                <feGaussianBlur in="broad-folds" stdDeviation="1.65" result="fold-height" />
+                <feDiffuseLighting in="fold-height" surfaceScale="5.3" diffuseConstant="0.82" lighting-color="#d4b57a" result="diffuse-map">
+                  <feDistantLight azimuth="225" elevation="43" />
+                </feDiffuseLighting>
+                <feSpecularLighting in="fold-height" surfaceScale="4.1" specularConstant="0.48" specularExponent="13" lighting-color="#ffe1a2" result="specular-map">
+                  <feDistantLight azimuth="225" elevation="43" />
+                </feSpecularLighting>
+                <feBlend in="diffuse-map" in2="specular-map" mode="screen" result="lit-relief" />
+                <feColorMatrix in="lit-relief" type="matrix" values="0.72 0 0 0 0.04  0 0.62 0 0 0.03  0 0 0.45 0 0.02  0 0 0 0.94 0" />
+              </filter>
+            </defs>
+          </svg>
         </div>
         <div class="scroll-shade" aria-hidden="true">
           <span class="scroll-roll scroll-roll-bottom"></span>
         </div>
       </div>
     </div>
+    <script type="module">
+      const entry = document.getElementById("entry");
+      const prop = entry?.querySelector(".scroll");
+      const glint = entry?.querySelector(".scroll-relief-highlight");
+      const reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+      if (entry && prop && glint) {
+        let bounds = null;
+        let raf = 0;
+        let active = false;
+        let currentX = 0;
+        let currentY = 0;
+        let targetX = 0;
+        let targetY = 0;
+
+        const motionAllowed = () => finePointerQuery.matches && !reduceQuery.matches;
+        const rememberBounds = () => { bounds = prop.getBoundingClientRect(); };
+        const renderTilt = () => {
+          currentX += (targetX - currentX) * 0.115;
+          currentY += (targetY - currentY) * 0.115;
+          prop.style.transform = `perspective(1400px) rotateX(${currentY.toFixed(3)}deg) rotateY(${currentX.toFixed(3)}deg)`;
+          glint.style.transform = `translate3d(${(-currentX * 2.7).toFixed(2)}px, ${(-currentY * 2.7).toFixed(2)}px, 0)`;
+          prop.style.setProperty("--glint-boost", (Math.min(1, Math.hypot(currentX, currentY) / 2) * 0.035).toFixed(3));
+
+          if (Math.abs(targetX - currentX) > 0.008 || Math.abs(targetY - currentY) > 0.008) {
+            raf = window.requestAnimationFrame(renderTilt);
+          } else {
+            raf = 0;
+            if (!active) {
+              currentX = 0;
+              currentY = 0;
+              prop.style.transform = "";
+              glint.style.transform = "";
+              prop.style.setProperty("--glint-boost", "0");
+            }
+          }
+        };
+        const wake = () => { if (!raf && motionAllowed()) raf = window.requestAnimationFrame(renderTilt); };
+        const resetTilt = () => {
+          if (raf) window.cancelAnimationFrame(raf);
+          raf = 0;
+          active = false;
+          currentX = 0;
+          currentY = 0;
+          targetX = 0;
+          targetY = 0;
+          prop.style.transform = "";
+          glint.style.transform = "";
+          prop.style.setProperty("--glint-boost", "0");
+        };
+
+        entry.addEventListener("pointerenter", () => {
+          if (!motionAllowed()) return;
+          active = true;
+          rememberBounds();
+          wake();
+        });
+        entry.addEventListener("pointermove", (event) => {
+          if (!active || !motionAllowed()) return;
+          if (!bounds) rememberBounds();
+          const x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+          const y = ((event.clientY - bounds.top) / bounds.height) * 2 - 1;
+          targetX = Math.max(-1, Math.min(1, x)) * 1.85;
+          targetY = Math.max(-1, Math.min(1, -y)) * 1.55;
+          wake();
+        }, { passive: true });
+        entry.addEventListener("pointerleave", () => {
+          active = false;
+          targetX = 0;
+          targetY = 0;
+          wake();
+        });
+        window.addEventListener("resize", () => { bounds = null; }, { passive: true });
+        reduceQuery.addEventListener("change", () => {
+          if (!motionAllowed()) resetTilt();
+        });
+        finePointerQuery.addEventListener("change", () => { if (!motionAllowed()) resetTilt(); });
+      }
+    </script>
   </div>
 
   <!-- ===== Voyage overlay layer (hidden until body.in-voyage) ===== -->

@@ -1,6 +1,6 @@
 // voyage.js
-// The playable 3D voyage for "An Odyssey". A low-poly ship sails a dark starlit
-// sea between five island chapters. Built on three.js r0.185 via the page import map.
+// The playable 3D voyage for "An Odyssey". A ship circles one continuous
+// Mediterranean island whose five coastal regions hold the portfolio chapters.
 // Owner: Build Agent B. This module owns only itself and the joystick children it
 // creates inside #joystick-zone. Everything else belongs to the page.
 
@@ -10,35 +10,86 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import {
+  generateTerrainField,
+  hydrateTerrainField,
+  TERRAIN_BOUNDS,
+  TERRAIN_DOCKS,
+  TERRAIN_PADS,
+  buildNavigableCoastalRoute,
+  verifyDockNavigation,
+} from "./terrain-field.mjs";
+import {
+  createTerrainMaterial,
+  setTerrainMaterialQuality,
+  loadTerrainMaterialAssets,
+  updateTerrainMaterialTime,
+} from "./terrain-material.mjs";
+import {
+  buildOceanFragmentShader,
+} from "./ocean-shader.mjs";
+import {
+  ENV_MAP_INTENSITY,
+  PHYSICAL_LIGHTING,
+  SHADOW_CONFIG,
+  SUN_DIRECTION,
+  SUN_ELEVATION_DEGREES,
+} from "./lighting-config.mjs";
+import { buildR5Scatter } from "./r5-scatter.mjs";
+import {
+  foundationGeometry,
+  mergeGlbLandmark,
+  mergeScenePrimitives,
+  terrainFoundationGeometry,
+} from "./r6-landmark-geometry.mjs";
+import { R6_LANDMARK_CONFIG } from "./r6-landmark-config.mjs";
+import {
+  R6_LANDMARK_GROUNDING,
+  footprintY as sampleFootprintY,
+  laborsSteleGrounding,
+} from "./r6-landmark-grounding.mjs";
+import {
+  nextQualityTier,
+  normalizeQualityTier,
+  QUALITY_PROFILES,
+  RUNTIME_QUALITY,
+} from "./quality-config.mjs";
 
 // ---------------------------------------------------------------------------
 // Palette (linear via ColorManagement). These match the site tokens.
 // ---------------------------------------------------------------------------
 const COL = {
-  seaDeep: 0x13448a, // vivid but deep day blue (deep water)
-  seaCrest: 0x2f6cc4, // crest lift
-  seaShallow: 0x35c1c8, // turquoise shallows ring near shores
+  seaDeep: 0x0b3550,
+  seaCrest: 0x17647a,
+  seaShallow: 0x2fa8a0,
   amber: 0xe78b34, // warm accent (braziers, hearths, beacons)
   amberDeep: 0xd46d07,
   peach: 0xfecb99,
   cream: 0xffe9bb, // warm white glitter on the sun road
   tan: 0xcab6a4,
   sun: 0xfff3d6, // bright warm sun disc
-  skyZenith: 0x3f8fe8, // azure overhead
-  skyHorizon: 0xbcd6ea, // pale blue toward the horizon
-  skyWater: 0xe9dfc9, // whisper of cream right at the waterline
-  haze: 0xcfe2f2, // light blue-white atmosphere / fog
-  rock: 0x9d9483, // warm light-grey daylight rock
-  rockLight: 0xbcb19a,
-  sand: 0xe4d2a4, // warm sun-lit sand
-  foliage: 0x4f9b45, // saturated Ghibli green
+  skyZenith: 0x4f7698,
+  skyHorizon: 0xe7c9a7,
+  skyWater: 0xf0d6b6,
+  haze: 0xd8c7b1,
+  rock: 0xa79d87,
+  rockLight: 0xc7bda5,
+  sand: 0xe8d3a4,
+  foliage: 0x617044,
   marble: 0xefe9dd, // bright daylight marble
   wake: 0xffffff, // bright white foam that reads on blue (F4)
-  cloudTop: 0xf6f8fb, // sun-lit cloud crown
-  cloudUnder: 0x93aac6, // subtle blue-grey cloud underside
+  cloudTop: 0xffe8cf,
+  cloudUnder: 0xa79a98,
   flame: 0xffd27a, // golden beacon flame
   mote: 0xffe6b8, // pale warm dust mote tint
 };
+const TERRAIN_VERTEX_LAYER_COLORS = [
+  new THREE.Color(0xd8c28f),
+  new THREE.Color(0x8c8050),
+  new THREE.Color(0x5f7042),
+  new THREE.Color(0xb9b09c),
+  new THREE.Color(0x756f64),
+];
 
 // ---------------------------------------------------------------------------
 // Ocean waves: SINGLE SOURCE OF TRUTH. Used both CPU side (buoyancy) and to
@@ -46,9 +97,11 @@ const COL = {
 // A calm sea: gentle long swell plus a couple of finer directional ripples.
 // ---------------------------------------------------------------------------
 const WAVES = [
-  { dirX: 0.94, dirZ: 0.34, amp: 0.62, len: 41, speed: 0.55 },
-  { dirX: -0.55, dirZ: 0.84, amp: 0.34, len: 24, speed: 0.78 },
-  { dirX: 0.22, dirZ: -0.98, amp: 0.16, len: 13, speed: 1.08 },
+  { dirX: 0.94, dirZ: 0.34, amp: 0.48, len: 46, speed: 0.48 },
+  { dirX: -0.58, dirZ: 0.82, amp: 0.28, len: 29, speed: 0.66 },
+  { dirX: 0.24, dirZ: -0.97, amp: 0.15, len: 18, speed: 0.88 },
+  { dirX: 0.78, dirZ: -0.62, amp: 0.08, len: 10, speed: 1.18 },
+  { dirX: -0.92, dirZ: -0.38, amp: 0.04, len: 6.5, speed: 1.46 },
 ];
 const WAVE_C = WAVES.map((w) => {
   const l = Math.hypot(w.dirX, w.dirZ) || 1;
@@ -99,18 +152,42 @@ function oceanHeightGLSL() {
   }
   g += "  float shipD = distance(p, uShipPos.xz);\n";
   g += "  return h * mix(0.25, 1.0, smoothstep(3.5, 10.0, shipD));\n}\n";
+  g += "vec2 oceanSlope(vec2 p, float t){\n  vec2 s = vec2(0.0);\n";
+  for (const w of WAVE_C) {
+    g += `  s += vec2(${w.nx.toFixed(4)}, ${w.nz.toFixed(4)}) * ${(w.amp * w.k).toFixed(6)} * cos((${w.nx.toFixed(4)} * p.x + ${w.nz.toFixed(4)} * p.y) * ${w.k.toFixed(6)} + t * ${w.speed.toFixed(4)});\n`;
+  }
+  g += "  float shipD = distance(p, uShipPos.xz);\n  return s * mix(0.25, 1.0, smoothstep(3.5, 10.0, shipD));\n}\n";
   return g;
 }
 
 // ---------------------------------------------------------------------------
 // Layout, physics and tuning constants.
 // ---------------------------------------------------------------------------
-const PLAY_R = 220; // soft circular play boundary radius
-const ISLAND_R = 120; // pentagon radius
+const PLAY_R = 225;
+const MAIN_ISLAND = { x: 0, z: 34, rx: 78, rz: 58, coastRouteR: 94 };
+// The opening lane is one deliberate sightline: ship -> Origins dock -> the
+// acropolis on the summit. A straight W-hold therefore reaches the first dock
+// naturally while the island hero stays composed beyond the bow.
+const HERO_POINT = { x: -4, y: 18, z: 48 };
+const SPAWN = {
+  x: -47 - 43 * 0.7,
+  z: -28 - 76 * 0.7,
+  heading: Math.atan2(43, 76),
+};
+// Collision distances are world units in the shared signed-distance field.
+// The six-unit hull remains at least seven units outside the rendered coast.
+const SHORE_SAFE_DISTANCE = 7;
+const SHORE_SOFT_DISTANCE = 13;
+// A 45k-droplet cold benchmark measured 327.62ms on the target development
+// machine. That exceeds the 200ms main-thread threshold and 250ms erosion budget,
+// so Round 1 uses the plan's 18k fallback in a module Worker.
+const TERRAIN_MAIN_THREAD_BENCHMARK_MS = 327.62;
+const TERRAIN_EROSION_DROPLETS = 18000;
+const COURSE_DASH_COUNT = 64;
 // Lighter daytime haze than the night fog so islands read from much farther and
 // fade into a bright blue-white horizon rather than vanishing into the dark (4).
-const FOG_DENSITY = 0.0049;
-const OCEAN_SIZE = 480;
+const FOG_DENSITY = PHYSICAL_LIGHTING.fogDensity;
+const OCEAN_SIZE = 520;
 
 const PHYS = {
   accel: 14,
@@ -129,24 +206,29 @@ const CAM_OFF_Y = 8.0;
 const CAM_OFF_Z = -14.0;
 const CAM_LOOK_Y = 1.2;
 
+const TERRAIN_DOCK_BY_ID = new Map(TERRAIN_DOCKS.map((item) => [item.id, item]));
+const TERRAIN_PAD_BY_ID = new Map(TERRAIN_PADS.map((item) => [item.id, item]));
+function regionDef(id, name, tag, radius) {
+  const pad = TERRAIN_PAD_BY_ID.get(id);
+  const dock = TERRAIN_DOCK_BY_ID.get(id);
+  return { id, name, tag, radius, kind: id, center: [pad.x, pad.z], dock: [dock.x, dock.z] };
+}
 const ISLAND_DEFS = [
-  { id: "origins", name: "Origins", tag: "About", ang: 90, radius: 19, kind: "origins" },
-  { id: "forge", name: "The Forge", tag: "Skills", ang: 162, radius: 18, kind: "forge" },
-  { id: "labors", name: "The Labors", tag: "Projects", ang: 234, radius: 27, kind: "labors" },
-  { id: "voyages", name: "The Voyages", tag: "Experience", ang: 306, radius: 20, kind: "voyages" },
-  { id: "oracle", name: "The Oracle", tag: "Contact", ang: 18, radius: 18, kind: "oracle" },
+  regionDef("origins", "Origins", "About", 14),
+  regionDef("forge", "The Forge", "Skills", 13),
+  regionDef("labors", "The Labors", "Projects", 18),
+  regionDef("voyages", "The Voyages", "Experience", 14),
+  regionDef("oracle", "The Oracle", "Contact", 13),
 ];
 
 // Sun low on the horizon, slightly forward and to the right so the sun road on
 // the water leads the visitor toward the Origins island they face at spawn. The
 // name MOON_DIR is kept only so the many downstream references stay stable; by
 // day it is the sun direction that lights the scene and paints the glitter road.
-const MOON_DIR = new THREE.Vector3(0.28, 0.11, 1.0).normalize();
+const MOON_DIR = new THREE.Vector3(...SUN_DIRECTION);
 
-// Daytime dims the night braziers/lamps so island point-glows read as gentle
-// warm accents at noon rather than lanterns in the dark (point 5). Applied
-// uniformly in addPointGlow and glowMarker so every accent scales together.
-const DAY_ACCENT = 0.32; // scale for warm accent PointLights
+// Physical daylight carries the scene. Decorative point lights are removed;
+// the only live local lights are the eased dock and beat accents during tours.
 const DAY_EMISSIVE = 0.6; // scale for warm emissive glow markers
 
 // ---------------------------------------------------------------------------
@@ -191,7 +273,23 @@ function freshState() {
     camera: null,
     composer: null,
     bloom: null,
+    sun: null,
+    environmentTarget: null,
+    environmentSize: 0,
+    staticShadowsFrozen: false,
     quality: "high",
+    profile: QUALITY_PROFILES.high,
+    dprCap: QUALITY_PROFILES.high.dprCap,
+    bloomEnabled: true,
+    runtimeVegetationDensity: 1,
+    runtimeGrassDistanceScale: 1,
+    vegetationShadowsEnabled: true,
+    perfSamples: [],
+    perfWarmupFrames: 0,
+    perfOverBudgetMs: 0,
+    degradationStep: 0,
+    degradationExhausted: false,
+    lastProgress: 0,
     reducedMotion: false,
     isTouch: false,
     muted: true, // audio starts silent; the AudioContext is not created until the first unmute (V5)
@@ -211,6 +309,20 @@ function freshState() {
     sunMesh: null,
     sky: null, // day gradient dome that follows the camera (point 1)
     clouds: [], // procedural low-poly cumulus clusters (point 1)
+    birds: null,
+    terrain: null,
+    cliffBand: null,
+    terrainField: null,
+    terrainTextures: null,
+    terrainMaterial: null,
+    rockMaterial: null,
+    landmarkMaterials: null,
+    terrainFallbackMaterial: null,
+    terrainMaterialAssets: null,
+    terrainWorker: null,
+    r5Scatter: null,
+    r5Stats: null,
+    r6Census: {},
     flames: [], // per-island beacon flame plumes, ignited on visit (point 6)
     voyageComplete: false, // set once all five flames are lit (point 6)
     ruin: null, // colossal half-sunken ruin collidable (N3)
@@ -266,7 +378,7 @@ function freshState() {
     // autopilot (sailTo). arrived/arriveTimer/dockIsland drive the auto-dock on
     // arrival: once the ship settles in dock range of the sailTo target it docks
     // itself, unless manual input cancelled the autopilot first.
-    autopilot: { active: false, island: null, arrived: false, arriveTimer: 0, dockIsland: null },
+    autopilot: { active: false, island: null, route: [], routeIndex: 0, arrived: false, arriveTimer: 0, dockIsland: null },
     // attract cinematic and the intro dive out of it
     attractT: 0,
     introFrom: { pos: new THREE.Vector3(), look: new THREE.Vector3() },
@@ -282,6 +394,165 @@ function freshState() {
     resizeTimer: 0,
     readyFired: false,
   };
+}
+
+async function initTerrainField() {
+  const options = { droplets: TERRAIN_EROSION_DROPLETS, thermalPasses: 14 };
+  let field = null;
+  let execution = "main-thread fallback";
+  if (typeof Worker !== "undefined" && TERRAIN_MAIN_THREAD_BENCHMARK_MS > 200) {
+    try {
+      field = await new Promise((resolve, reject) => {
+        const worker = new Worker(new URL("./terrain-field-worker.js", import.meta.url), { type: "module" });
+        V.terrainWorker = worker;
+        worker.onmessage = (event) => resolve(hydrateTerrainField(event.data));
+        worker.onerror = (event) => reject(event.error || new Error(event.message || "TerrainField worker failed"));
+        worker.postMessage(options);
+      });
+      execution = "module Worker";
+    } catch (error) {
+      console.warn("[voyage] TerrainField Worker unavailable; generating on main thread", error);
+    } finally {
+      if (V.terrainWorker) V.terrainWorker.terminate();
+      V.terrainWorker = null;
+    }
+  }
+  if (!field) field = generateTerrainField(options);
+  V.terrainField = field;
+  V.terrainTextures = createTerrainDataTextures(field);
+  console.info(
+    `[voyage] TerrainField ${field.bounds.width}x${field.bounds.height}: ${field.generationMs.toFixed(2)}ms in ${execution}; ` +
+    `${field.droplets} hydraulic droplets (45k benchmark ${TERRAIN_MAIN_THREAD_BENCHMARK_MS.toFixed(2)}ms)`,
+  );
+}
+
+function createTerrainDataTextures(field) {
+  const { width, height } = field.bounds;
+  const configure = (texture) => {
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    texture.flipY = false;
+    texture.unpackAlignment = 1;
+    texture.needsUpdate = true;
+    V.textures.push(texture);
+    return texture;
+  };
+  return {
+    height: configure(new THREE.DataTexture(field.height, width, height, THREE.RedFormat, THREE.FloatType)),
+    sdf: configure(new THREE.DataTexture(field.sdf, width, height, THREE.RedFormat, THREE.FloatType)),
+    splat: configure(new THREE.DataTexture(field.splat, width, height, THREE.RGBAFormat, THREE.FloatType)),
+  };
+}
+
+function sampleTerrainTextureLikeGpu(array, field, x, z) {
+  const u = (x - field.bounds.minX) / (field.bounds.maxX - field.bounds.minX);
+  const v = (z - field.bounds.minZ) / (field.bounds.maxZ - field.bounds.minZ);
+  if (u < 0 || v < 0 || u > 1 || v > 1) return null;
+  const width = field.bounds.width, height = field.bounds.height;
+  // Shaders remap normalized bounds UVs to texel centers, so GL's linear
+  // filtering interpolates the same (width-1)/(height-1) grid as the CPU.
+  const gx = u * (width - 1), gz = v * (height - 1);
+  const x0 = Math.max(0, Math.min(width - 1, Math.floor(gx)));
+  const z0 = Math.max(0, Math.min(height - 1, Math.floor(gz)));
+  const x1 = Math.max(0, Math.min(width - 1, x0 + 1));
+  const z1 = Math.max(0, Math.min(height - 1, z0 + 1));
+  const tx = Math.max(0, Math.min(1, gx - Math.floor(gx)));
+  const tz = Math.max(0, Math.min(1, gz - Math.floor(gz)));
+  const a = array[z0 * width + x0] + (array[z0 * width + x1] - array[z0 * width + x0]) * tx;
+  const b = array[z1 * width + x0] + (array[z1 * width + x1] - array[z1 * width + x0]) * tx;
+  return a + (b - a) * tz;
+}
+
+function runCoastConsistencyCheck(requestedSamples) {
+  if (!V || !V.terrainField) return null;
+  const field = V.terrainField;
+  const target = Math.max(64, Math.min(8192, requestedSamples | 0));
+  let state = 0xc0a57, samples = 0, maxError = 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  for (let attempt = 0; attempt < target * 160 && samples < target; attempt++) {
+    const x = field.bounds.minX + random() * (field.bounds.maxX - field.bounds.minX);
+    const z = field.bounds.minZ + random() * (field.bounds.maxZ - field.bounds.minZ);
+    const collisionSdf = field.sampleSdf(x, z);
+    if (collisionSdf == null || Math.abs(collisionSdf) > 1.5) continue;
+    const renderSdf = sampleTerrainTextureLikeGpu(field.sdf, field, x, z);
+    maxError = Math.max(maxError, Math.abs(renderSdf - collisionSdf));
+    samples++;
+  }
+  const controlTexel = Math.max(field.dx, field.dz);
+  const result = { samples, maxError, controlTexel, pass: samples >= 64 && maxError < controlTexel };
+  if (!result.pass) console.error("[voyage] TerrainField coast consistency failed", result);
+  return result;
+}
+
+function terrainShaderFailureDetails(gl, program, vertexShader, fragmentShader) {
+  const lines = [
+    gl.getProgramInfoLog(program),
+    gl.getShaderInfoLog(vertexShader),
+    gl.getShaderInfoLog(fragmentShader),
+  ].map((line) => (line || "").trim()).filter(Boolean);
+  return lines.join("\n") || "WebGL reported an unrunnable terrain program without an info log.";
+}
+
+function createTerrainVertexColorMaterial() {
+  const material = pbrMaterial({
+    color: 0xffffff,
+    vertexColors: true,
+    roughness: 0.96,
+    metalness: 0,
+    flatShading: false,
+  }, "terrain");
+  material.name = "voyage-terrain-vertex-color-fallback";
+  return material;
+}
+
+async function compileTerrainMaterialOrFallback() {
+  const material = V.terrainMaterial;
+  if (!material || !V.terrain || !V.renderer || !V.scene || !V.camera) return true;
+
+  const renderer = V.renderer;
+  const previousShaderError = renderer.debug.onShaderError;
+  let failure = null;
+  renderer.debug.checkShaderErrors = true;
+  renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
+    if (!failure) failure = new Error(terrainShaderFailureDetails(gl, program, vertexShader, fragmentShader));
+  };
+
+  const compileScene = new THREE.Scene();
+  const compileMesh = new THREE.Mesh(V.terrain.geometry, material);
+  compileMesh.position.copy(V.terrain.position);
+  compileScene.add(compileMesh);
+  try {
+    await renderer.compileAsync(compileScene, V.camera, V.scene);
+    const failedProgram = renderer.info.programs.find((program) =>
+      program.name === material.name && program.diagnostics && program.diagnostics.runnable === false
+    );
+    if (!failure && failedProgram) {
+      failure = new Error(failedProgram.diagnostics.programLog || "Terrain shader program is not runnable.");
+    }
+  } catch (error) {
+    failure = error instanceof Error ? error : new Error(String(error));
+  } finally {
+    renderer.debug.onShaderError = previousShaderError;
+    compileScene.remove(compileMesh);
+  }
+
+  if (!failure) return true;
+
+  const fallback = createTerrainVertexColorMaterial();
+  V.scene.traverse((object) => {
+    if (object.material === material) object.material = fallback;
+  });
+  V.terrainMaterial = fallback;
+  V.terrainFallbackMaterial = fallback;
+  material.dispose();
+  console.error("[voyage] Terrain PBR shader failed to compile; using vertex-color fallback.", failure);
+  return false;
 }
 
 // ===========================================================================
@@ -307,7 +578,16 @@ export async function initVoyage(opts) {
   V = freshState();
   V.opts = opts || {};
   V.canvas = opts.canvas || document.getElementById("voyage-canvas");
-  V.quality = opts.quality === "low" ? "low" : "high";
+  V.quality = normalizeQualityTier(opts.quality) || "balanced";
+  V.profile = QUALITY_PROFILES[V.quality];
+  V.dprCap = V.profile.dprCap;
+  V.bloomEnabled = V.profile.bloom;
+  V.vegetationShadowsEnabled = V.profile.vegetationShadows;
+  if (V.canvas) V.canvas.dataset.quality = V.quality;
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.voyageQuality = V.quality;
+    document.body.classList.toggle("quality-mobile", V.quality === "mobile");
+  }
   V.reducedMotion = !!opts.reducedMotion;
   // Audio defaults to muted; only an explicit opts.muted === false unmutes.
   V.muted = opts.muted != null ? !!opts.muted : true;
@@ -316,10 +596,13 @@ export async function initVoyage(opts) {
     (typeof window !== "undefined" &&
       window.matchMedia &&
       window.matchMedia("(pointer: coarse)").matches) ||
+    V.quality === "mobile" ||
     "ontouchstart" in window;
 
   // Try to pull real copy from the page data module; fall back if absent.
   await loadSiteCopy();
+
+  await initTerrainField();
 
   buildRenderer();
   buildScene();
@@ -328,8 +611,57 @@ export async function initVoyage(opts) {
   buildOcean();
   buildBoundary();
 
-  // Load models (drives onProgress), then assemble the ship and islands.
-  const models = await loadModels(reportProgress);
+  // Terrain maps and models share the visible entry progress. Island meshes are
+  // not created until every real PBR map is ready (or a file-specific fallback
+  // has been installed), so the entry never flashes an untextured heightfield.
+  const loadState = { models: 0, terrain: 0 };
+  const updateAssetProgress = () => reportProgress(
+    ((loadState.models * 12 + loadState.terrain * 20) / 32) * 0.98,
+  );
+  const [models, terrainMaterialAssets] = await Promise.all([
+    loadModels((progress) => {
+      loadState.models = progress;
+      updateAssetProgress();
+    }),
+    loadTerrainMaterialAssets(V.renderer, (progress) => {
+      loadState.terrain = progress;
+      updateAssetProgress();
+    }),
+  ]);
+  V.terrainMaterialAssets = terrainMaterialAssets;
+  V.textures.push(...terrainMaterialAssets.albedo, ...terrainMaterialAssets.nra);
+  V.terrainMaterial = createTerrainMaterial(
+    terrainMaterialAssets,
+    V.terrainTextures,
+    TERRAIN_BOUNDS,
+    { quality: V.quality },
+  );
+  V.rockMaterial = createTerrainMaterial(
+    terrainMaterialAssets,
+    V.terrainTextures,
+    TERRAIN_BOUNDS,
+    { rockMode: true, quality: V.quality },
+  );
+  V.landmarkMaterials = {
+    weathered: createTerrainMaterial(
+      terrainMaterialAssets,
+      V.terrainTextures,
+      TERRAIN_BOUNDS,
+      { landmarkMode: true, tint: 0xb8aa90, variant: "weathered", quality: V.quality },
+    ),
+    plaster: createTerrainMaterial(
+      terrainMaterialAssets,
+      V.terrainTextures,
+      TERRAIN_BOUNDS,
+      { landmarkMode: true, tint: 0xd0c5ae, variant: "plaster", quality: V.quality },
+    ),
+    hero: createTerrainMaterial(
+      terrainMaterialAssets,
+      V.terrainTextures,
+      TERRAIN_BOUNDS,
+      { landmarkMode: true, tint: 0xe0d6c0, variant: "summit-hero", quality: V.quality },
+    ),
+  };
   // Shared loader for the small icon textures painted onto the Labors plaques and
   // the Voyages banners. Kept separate from the model manager so late texture
   // loads never re-drive the load progress bar; errors fall back to warm plaques.
@@ -338,7 +670,10 @@ export async function initVoyage(opts) {
   V.texLoader = new THREE.TextureLoader(V.texManager);
   buildShip(models);
   buildIslands(models);
+  await compileTerrainMaterialOrFallback();
+  validateDockSetup();
   setOceanShallows();
+  buildBirds();
   buildColossus();
   buildCourseLine();
 
@@ -351,7 +686,6 @@ export async function initVoyage(opts) {
   handleResize();
 
   V.initialized = true;
-  reportProgress(1);
   // Prime the FIRST frame before anything renders: pose the camera at the wide
   // attract shot, place the sea under it, and initialise every ocean uniform.
   // Without this, frame one rendered from the raw default pose with a zeroed
@@ -368,7 +702,10 @@ export async function initVoyage(opts) {
   } catch (e) {
     console.error("[voyage] material compile failed", e);
   }
+  reportProgress(1);
+  invalidateStaticShadows();
   renderFrame();
+  freezeStaticShadowMap();
 
   // A tiny driver hook so the page (and verification) can reach the exports even
   // before app.js wires the new controls. Guarded and side-effect free until
@@ -377,6 +714,8 @@ export async function initVoyage(opts) {
     window.__voyage = {
       startAttract, startVoyage, requestDock, exitDockedMode,
       nextBeat, prevBeat, endTour, sailTo, setActive, setMuted,
+      invalidateShadows: invalidateStaticShadows,
+      perf: readPerformanceProbe,
       // Read-only accessors for wiring and verification (inert unless called).
       getState() {
         let progress = null;
@@ -392,19 +731,84 @@ export async function initVoyage(opts) {
         return V
           ? {
               mode: V.mode,
+              position: { x: +V.pos.x.toFixed(2), z: +V.pos.z.toFixed(2) },
+              heading: +V.heading.toFixed(3),
+              speed: +V.speed.toFixed(2),
+              nearIsland: V.nearIsland ? V.nearIsland.id : null,
               visited: V.visitedList.slice(),
               autopilot: V.autopilot.active,
               tourIndex: V.tour ? V.tour.index : -1,
               tourTotal: V.tour ? V.tour.total : 0,
               hasAudio: !!V.audio,
               muted: V.muted,
+              quality: {
+                tier: V.quality,
+                dprCap: V.dprCap,
+                terrainGrid: V.profile.terrainGrid.slice(),
+                terrainShader: V.profile.terrainShader.variant,
+                oceanSegments: V.profile.oceanSegments,
+                bloom: !!(V.bloom && V.bloom.enabled),
+                pmremSize: V.profile.pmremSize,
+                joystick: !!V.joyEls,
+                loadingProgress: V.lastProgress,
+              },
               flames: progress,
+              lighting: {
+                sunElevation: SUN_ELEVATION_DEGREES,
+                shadowMapSize: V.sun ? V.sun.shadow.mapSize.x : 0,
+                staticShadowsFrozen: V.staticShadowsFrozen,
+                environment: !!V.scene.environment,
+                environmentSize: V.environmentSize,
+              },
+              scatter: V.r5Stats ? { ...V.r5Stats, counts: { ...V.r5Stats.counts } } : null,
+              landmarks: { ...V.r6Census },
             }
           : null;
       },
+      nearestDock() {
+        if (!V || !V.islands.length) return null;
+        let nearest = null;
+        let distance = Infinity;
+        for (const island of V.islands) {
+          const d = Math.hypot(V.pos.x - island.dockPoint.x, V.pos.z - island.dockPoint.z);
+          if (d < distance) {
+            nearest = island;
+            distance = d;
+          }
+        }
+        return nearest
+          ? { id: nearest.id, distance: +distance.toFixed(2), inRange: !!nearest.inRange }
+          : null;
+      },
+      terrainField() {
+        if (!V || !V.terrainField) return null;
+        const field = V.terrainField;
+        return {
+          version: field.version,
+          seed: field.seed,
+          grid: [field.bounds.width, field.bounds.height],
+          bounds: { ...field.bounds },
+          generationMs: +field.generationMs.toFixed(2),
+          droplets: field.droplets,
+          workerRequiredByBenchmark: TERRAIN_MAIN_THREAD_BENCHMARK_MS > 200,
+          cliffBandTriangles: V.cliffBand ? V.cliffBand.userData.triangleCount : 0,
+          docks: verifyDockNavigation(field, SHORE_SAFE_DISTANCE),
+        };
+      },
+      coastConsistency(samples = 1024) {
+        return runCoastConsistencyCheck(samples);
+      },
+      promptState() {
+        const el = document.getElementById("dock-prompt");
+        const textEl = el && el.querySelector(".dock-text");
+        return {
+          visible: !!(el && el.classList.contains("is-visible") && el.getAttribute("aria-hidden") === "false"),
+          text: textEl ? textEl.textContent.trim() : "",
+        };
+      },
       // Wrap the live callbacks to also record payloads for verification.
       debugTap() {
-        window.__cb = { beat: [], anchor: [], compass: [], visited: [], tour: [] };
+        window.__cb = { beat: [], anchor: [], compass: [], prompt: [], visited: [], tour: [] };
         const wrap = (name, key, pick) => {
           const orig = V.opts[name];
           V.opts[name] = (a) => {
@@ -415,6 +819,7 @@ export async function initVoyage(opts) {
         wrap("onBeatChange", "beat");
         wrap("onBeatAnchor", "anchor", (a) => ({ x: Math.round(a.x), y: Math.round(a.y), visible: a.visible, side: a.side }));
         wrap("onCompassUpdate", "compass", (a) => ({ heading: +Number(a.heading).toFixed(2), n: a.islands.length, next: (a.islands.find((i) => i.next) || {}).id }));
+        wrap("onPromptUpdate", "prompt", (a) => ({ visible: !!a.visible, approach: a.approach || null, islandId: a.islandId || null, regionName: a.regionName || null, label: a.label || "" }));
         wrap("onVisitedChange", "visited");
         wrap("onDockedTour", "tour");
       },
@@ -477,8 +882,21 @@ export function sailTo(islandId) {
   if (!isl) return;
   V.autopilot.active = true;
   V.autopilot.island = isl;
+  V.autopilot.route = makeCoastalRoute(V.pos.x, V.pos.z, isl);
+  V.autopilot.routeIndex = 0;
   V.autopilot.arrived = false;
   V.autopilot.dockIsland = null;
+}
+
+function makeCoastalRoute(fromX, fromZ, island) {
+  return buildNavigableCoastalRoute(
+    V.terrainField,
+    fromX,
+    fromZ,
+    island.dockPoint.x,
+    island.dockPoint.z,
+    7.4,
+  ).map((point) => new THREE.Vector3(point.x, 0, point.z));
 }
 
 // Advance to the next beat of the docked tour; on the final beat this ends the
@@ -511,9 +929,8 @@ export function endTour() {
 }
 
 export function requestDock() {
-  if (!V) return;
-  if (V.mode !== "sailing" || !V.nearIsland) return;
-  beginDock(V.nearIsland);
+  if (!V || V.mode !== "sailing" || !V.nearIsland) return false;
+  return beginDock(V.nearIsland);
 }
 
 // Kept for the classic fallback path (View as list closes the old panel). It
@@ -541,11 +958,8 @@ function beginUndock() {
   V.undockFrom.pos.copy(V.pos);
   V.undockFrom.heading = V.heading;
   if (isl) {
-    _v1.set(V.pos.x - isl.center.x, 0, V.pos.z - isl.center.z);
-    if (_v1.lengthSq() < 1e-4) _v1.set(0, 0, 1);
-    _v1.normalize(); // outward radial
-    const safe = isl.collideR + 10;
-    V.undockTo.pos.set(isl.center.x + _v1.x * safe, 0, isl.center.z + _v1.z * safe);
+    _v1.set(isl.outward.x, 0, isl.outward.y).normalize();
+    V.undockTo.pos.set(isl.dockPoint.x + _v1.x * 11, 0, isl.dockPoint.z + _v1.z * 11);
     // Tangent to the shore, angled slightly offshore so the bow points to sea.
     _v2.set(-_v1.z, 0, _v1.x).addScaledVector(_v1, 0.5).normalize();
     V.undockTo.heading = Math.atan2(_v2.x, _v2.z);
@@ -691,8 +1105,8 @@ let COPY = {
     voyages: { name: "The Voyages", tag: "Experience" },
     oracle: { name: "The Oracle", tag: "Contact" },
   },
-  dockDesktop: "Press E to dock",
-  dockMobile: "Tap to dock",
+  dockDesktop: "Press E to drop anchor at {name}",
+  dockMobile: "Tap to drop anchor at {name}",
   // Chapter order fixed to the numerals I..V (A1). Filled from data below.
   order: ["origins", "forge", "labors", "voyages", "oracle"],
   numerals: ["I", "II", "III", "IV", "V"],
@@ -761,29 +1175,37 @@ async function loadSiteCopy() {
 // RENDERER / SCENE
 // ===========================================================================
 function buildRenderer() {
-  const high = V.quality === "high";
   const renderer = new THREE.WebGLRenderer({
     canvas: V.canvas,
-    antialias: high,
+    antialias: V.profile.antialias,
     alpha: false,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? 2 : 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, V.dprCap));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Daytime exposure: pulled down from the night value so the bright sky, sunlit
   // sand and marble read as airy and vibrant without clipping to pure white. The
   // sun disc, cloud crowns and flames are the only near-white elements and are
   // kept just under the clip point (point 2).
-  renderer.toneMappingExposure = 0.96;
-  // No shadow maps anywhere.
-  renderer.shadowMap.enabled = false;
+  renderer.toneMappingExposure = PHYSICAL_LIGHTING.exposure;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // Keep one frame-wide census across every composer pass for __voyage.perf().
+  renderer.info.autoReset = false;
+  renderer.shadowMap.enabled = true;
+  // PCFShadowMap is the non-deprecated 0.185 WebGL path and is soft by default.
+  // Per-tier LightShadow.radius preserves a restrained penumbra at each map size.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  // The first complete scene render bakes the one static island shadow map.
+  // freezeStaticShadowMap() disables automatic updates immediately afterward.
+  renderer.shadowMap.autoUpdate = true;
+  renderer.shadowMap.needsUpdate = true;
   // Keep shader-error checking on so a strict-driver (ANGLE/D3D) GLSL compile
   // failure prints the full info log to the console instead of failing silent.
   renderer.debug.checkShaderErrors = true;
   V.renderer = renderer;
 
-  if (high) {
+  if (V.profile.bloom) {
     // Composer is created now; its passes are wired in wireComposer() once the
     // scene and camera exist (see buildScene).
     V.composer = new EffectComposer(renderer);
@@ -800,11 +1222,12 @@ function wireComposer() {
   // beacon flames actually glow. Prevents a full-sky glow mush (point 8).
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5,
-    0.4,
-    0.85
+    PHYSICAL_LIGHTING.bloom.strength,
+    PHYSICAL_LIGHTING.bloom.radius,
+    PHYSICAL_LIGHTING.bloom.threshold
   );
   V.bloom = bloom;
+  bloom.enabled = V.bloomEnabled;
   V.composer.addPass(bloom);
   V.composer.addPass(new OutputPass());
   V.composer.setPixelRatio(V.renderer.getPixelRatio());
@@ -834,31 +1257,43 @@ function buildScene() {
 }
 
 function buildLighting() {
-  // Bright warm key sunlight, lifted well above the night moon so the day image
-  // is airy and saturated without harsh contrast (point 2).
-  const sun = new THREE.DirectionalLight(0xfff2d6, 2.7);
-  sun.position.copy(MOON_DIR).multiplyScalar(400);
-  sun.target.position.set(0, 0, 0);
+  // One sun, one truth: this vector also places the sky disc and drives ocean
+  // specular. Its 20-degree elevation gives the island directional relief.
+  const sun = new THREE.DirectionalLight(
+    PHYSICAL_LIGHTING.sunColor,
+    PHYSICAL_LIGHTING.sunIntensity,
+  );
+  const shadowMapSize = selectShadowMapSize();
+  const snappedCenter = stabilizedShadowCenter(shadowMapSize);
+  sun.position.copy(snappedCenter).addScaledVector(MOON_DIR, SHADOW_CONFIG.lightDistance);
+  sun.target.position.copy(snappedCenter);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
+  sun.shadow.camera.left = -SHADOW_CONFIG.halfExtent;
+  sun.shadow.camera.right = SHADOW_CONFIG.halfExtent;
+  sun.shadow.camera.top = SHADOW_CONFIG.halfExtent;
+  sun.shadow.camera.bottom = -SHADOW_CONFIG.halfExtent;
+  sun.shadow.camera.near = SHADOW_CONFIG.near;
+  sun.shadow.camera.far = SHADOW_CONFIG.far;
+  sun.shadow.bias = SHADOW_CONFIG.bias;
+  sun.shadow.normalBias = SHADOW_CONFIG.normalBias;
+  sun.shadow.radius = V.profile.shadowRadius;
+  if ("blurSamples" in sun.shadow) {
+    sun.shadow.blurSamples = V.profile.shadowBlurSamples;
+  }
+  sun.shadow.camera.updateProjectionMatrix();
   V.scene.add(sun);
   V.scene.add(sun.target);
+  V.sun = sun;
 
-  // Sky-blue over sea-blue hemisphere: fills the whole scene with soft daylight
-  // so no surface reads as a black shadow and cloud undersides pick up a subtle
-  // blue-grey (point 2, point 5).
-  const hemi = new THREE.HemisphereLight(0xbcdcf5, 0x6f9ac0, 1.2);
+  // Modest sky/ground indirect fill preserves shadow detail without inventing a
+  // second direction. There are no standing opposing fill or rim lights.
+  const hemi = new THREE.HemisphereLight(
+    PHYSICAL_LIGHTING.hemisphereSkyColor,
+    PHYSICAL_LIGHTING.hemisphereGroundColor,
+    PHYSICAL_LIGHTING.hemisphereIntensity,
+  );
   V.scene.add(hemi);
-
-  // Gentle cool sky fill from the anti-sun side so shaded island flanks stay
-  // luminous instead of dropping to hard shadow (point 2: lift fills).
-  const fill = new THREE.DirectionalLight(0x9dc0e8, 0.72);
-  fill.position.set(-MOON_DIR.x, 0.45, -MOON_DIR.z).multiplyScalar(300);
-  V.scene.add(fill);
-
-  // A soft warm bounce from the sun azimuth, low and raking, for a touch of
-  // sunlit warmth on seaward faces. Subtle so highlights never clip.
-  const rim = new THREE.DirectionalLight(0xffe6c6, 0.35);
-  rim.position.set(MOON_DIR.x, 0.2, MOON_DIR.z).multiplyScalar(300);
-  V.scene.add(rim);
 
   // Eased warm fill that only breathes in while docked, so the framed island
   // reads while the panel is open (F3). Starts dark; positioned each frame.
@@ -874,6 +1309,24 @@ function buildLighting() {
   beatLight.position.set(0, 40, 0);
   V.scene.add(beatLight);
   V.beatLight = beatLight;
+}
+
+function selectShadowMapSize() {
+  let size = V.profile.shadowMapSize;
+  const maxTextureSize = V.renderer.capabilities.maxTextureSize || size;
+  while (size > maxTextureSize && size > QUALITY_PROFILES.mobile.shadowMapSize) size /= 2;
+  return size;
+}
+
+function stabilizedShadowCenter(mapSize) {
+  const center = new THREE.Vector3(...SHADOW_CONFIG.center);
+  const forward = _v1.copy(MOON_DIR).multiplyScalar(-1);
+  const right = _v2.crossVectors(forward, THREE.Object3D.DEFAULT_UP).normalize();
+  const up = _v3.crossVectors(right, forward).normalize();
+  const texel = (SHADOW_CONFIG.halfExtent * 2) / mapSize;
+  const rightOffset = Math.round(center.dot(right) / texel) * texel - center.dot(right);
+  const upOffset = Math.round(center.dot(up) / texel) * texel - center.dot(up);
+  return center.addScaledVector(right, rightOffset).addScaledVector(up, upOffset);
 }
 
 // ===========================================================================
@@ -909,7 +1362,79 @@ function buildSky() {
   halo.scale.setScalar(205);
   V.scene.add(halo);
 
+  buildEnvironmentFromSky();
   buildClouds();
+}
+
+function buildEnvironmentFromSky() {
+  if (V.environmentTarget) {
+    V.scene.environment = null;
+    V.environmentTarget.dispose();
+    V.disposables = V.disposables.filter((item) => item !== V.environmentTarget);
+    V.environmentTarget = null;
+    V.environmentSize = 0;
+  }
+  const environmentScene = new THREE.Scene();
+  const zenith = new THREE.Color(COL.skyZenith);
+  const horizon = new THREE.Color(COL.skyHorizon);
+  const water = new THREE.Color(COL.skyWater);
+  const skyMaterial = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      uZenith: { value: zenith },
+      uHorizon: { value: horizon },
+      uWater: { value: water },
+    },
+    vertexShader: `
+      varying vec3 vDirection;
+      void main() {
+        vDirection = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vDirection;
+      uniform vec3 uZenith;
+      uniform vec3 uHorizon;
+      uniform vec3 uWater;
+      void main() {
+        float h = normalize(vDirection).y;
+        vec3 upper = mix(uHorizon, uZenith, smoothstep(0.02, 0.82, h));
+        vec3 lower = mix(uWater, uHorizon, smoothstep(-0.18, 0.04, h));
+        gl_FragColor = vec4(h >= 0.0 ? upper : lower, 1.0);
+      }
+    `,
+  });
+  skyMaterial.toneMapped = false;
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 20), skyMaterial);
+  environmentScene.add(sky);
+
+  const sunMaterial = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(PHYSICAL_LIGHTING.sunColor).multiplyScalar(5.5),
+  });
+  sunMaterial.toneMapped = false;
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 12), sunMaterial);
+  sun.position.copy(MOON_DIR).multiplyScalar(6);
+  environmentScene.add(sun);
+
+  const pmrem = new THREE.PMREMGenerator(V.renderer);
+  const target = pmrem.fromScene(
+    environmentScene,
+    0.025,
+    0.1,
+    20,
+    { size: V.profile.pmremSize },
+  );
+  V.scene.environment = target.texture;
+  V.environmentTarget = target;
+  V.environmentSize = V.profile.pmremSize;
+  V.disposables.push(target);
+  pmrem.dispose();
+  sky.geometry.dispose();
+  skyMaterial.dispose();
+  sun.geometry.dispose();
+  sunMaterial.dispose();
 }
 
 // Day sky dome: a vertical gradient from azure overhead down through a pale blue
@@ -931,7 +1456,7 @@ function buildSkyDome() {
       uZenith: { value: new THREE.Vector3(zenith.r, zenith.g, zenith.b) },
       uHorizon: { value: new THREE.Vector3(horizon.r, horizon.g, horizon.b) },
       uWater: { value: new THREE.Vector3(water.r, water.g, water.b) },
-      uTonemap: { value: V.quality === "high" ? 0.0 : 1.0 },
+      uTonemap: { value: V.composer ? 0.0 : 1.0 },
     },
     vertexShader: `
       varying vec3 vDir;
@@ -955,7 +1480,7 @@ function buildSkyDome() {
         // Pale blue horizon rising to azure overhead.
         vec3 col = mix(uHorizon, uZenith, smoothstep(0.0, 0.55, elev));
         // A whisper of warm cream right at and just below the waterline.
-        col = mix(col, uWater, smoothstep(0.06, -0.03, elev));
+        col = mix(col, uWater, 1.0 - smoothstep(-0.03, 0.06, elev));
         if(uTonemap > 0.5){
           col = aces(col);
           col = pow(col, vec3(1.0/2.2));
@@ -979,27 +1504,33 @@ function buildSkyDome() {
 // under the bloom knee so the sky never glows. Clusters sway very slowly in place
 // with no per-frame allocation (points 1, 8).
 function buildClouds() {
-  const high = V.quality === "high";
-  const clusterCount = high ? 12 : 6; // fewer on low quality
-  // Linear vertex colours. The crown is capped well under the bloom luminance
-  // knee (~0.85) so clouds read bright white after tone mapping without blooming.
-  const top = [0.7, 0.72, 0.76];
-  const under = [0.3, 0.37, 0.47];
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
-  V.disposables.push(mat);
+  const clusterCount = V.profile.cloudCount;
+  const tex = makeCloudTexture();
   for (let ci = 0; ci < clusterCount; ci++) {
-    // Ring the sky at varied azimuth, depth and mid-to-upper height.
     const az = (ci / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.55;
-    const rad = 380 + Math.random() * 520;
-    const height = 150 + Math.random() * 200;
+    const rad = 430 + Math.random() * 360;
+    const height = 125 + Math.random() * 120;
     const cx = Math.sin(az) * rad;
     const cz = Math.cos(az) * rad;
-    const scale = (high ? 32 : 40) * (0.7 + Math.random() * 0.85);
-    const blobs = high ? 5 + Math.floor(Math.random() * 4) : 4;
-    const mesh = buildCloudMesh(blobs, scale, top, under, mat);
+    const scale = V.profile.cloudScale * (0.75 + Math.random() * 0.65);
+    const mesh = new THREE.Group();
+    for (let layer = 0; layer < 3; layer++) {
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        color: layer === 0 ? COL.cloudUnder : COL.cloudTop,
+        transparent: true,
+        opacity: layer === 0 ? 0.38 : 0.5,
+        depthWrite: false,
+        depthTest: true,
+        fog: false,
+      });
+      const puff = new THREE.Sprite(mat);
+      puff.position.set((layer - 1) * scale * 0.34, layer * scale * 0.08, -layer * 1.5);
+      puff.scale.set(scale * (1.45 - layer * 0.12), scale * (0.52 + layer * 0.05), 1);
+      mesh.add(puff);
+    }
     mesh.position.set(cx, height, cz);
-    mesh.frustumCulled = false;
-    mesh.renderOrder = -8; // after the dome, before scene geometry
+    mesh.renderOrder = -8;
     V.scene.add(mesh);
     V.clouds.push({
       mesh,
@@ -1012,35 +1543,24 @@ function buildClouds() {
   }
 }
 
-// Merge a handful of flattened icosahedron blobs into one faceted cumulus lump.
-function buildCloudMesh(blobs, scale, top, under, mat) {
-  const positions = [];
-  for (let b = 0; b < blobs; b++) {
-    const r = scale * (0.45 + Math.random() * 0.4);
-    const ox = (Math.random() - 0.5) * scale * 1.9;
-    const oy = Math.random() * scale * 0.45;
-    const oz = (Math.random() - 0.5) * scale * 1.05;
-    const geo = new THREE.IcosahedronGeometry(r, 1);
-    geo.scale(1.18, 0.8, 1.0); // squat cumulus base
-    const p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      positions.push(p.getX(i) + ox, p.getY(i) + oy, p.getZ(i) + oz);
-    }
-    geo.dispose();
+function makeCloudTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  const puffs = [[120, 150, 92], [225, 112, 116], [340, 143, 104], [430, 164, 72]];
+  for (const [x, y, r] of puffs) {
+    const g = ctx.createRadialGradient(x, y - r * 0.15, r * 0.08, x, y, r);
+    g.addColorStop(0, "rgba(255,255,255,.98)");
+    g.addColorStop(0.55, "rgba(255,255,255,.72)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  merged.computeVertexNormals(); // non-indexed => flat per-facet normals
-  const nAttr = merged.attributes.normal;
-  const cols = new Float32Array(nAttr.count * 3);
-  for (let i = 0; i < nAttr.count; i++) {
-    const t = smoothstep(-0.35, 0.65, nAttr.getY(i));
-    cols[i * 3] = under[0] + (top[0] - under[0]) * t;
-    cols[i * 3 + 1] = under[1] + (top[1] - under[1]) * t;
-    cols[i * 3 + 2] = under[2] + (top[2] - under[2]) * t;
-  }
-  merged.setAttribute("color", new THREE.BufferAttribute(cols, 3));
-  return new THREE.Mesh(merged, mat);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 // Drift the cumulus clusters with a very slow horizontal sway. No allocation.
@@ -1053,26 +1573,55 @@ function updateClouds() {
   }
 }
 
+function buildBirds() {
+  const count = V.profile.birdCount;
+  const pos = new Float32Array(count * 4 * 3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.LineBasicMaterial({ color: 0x4c4b46, transparent: true, opacity: 0.72, fog: true });
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.frustumCulled = false;
+  V.scene.add(lines);
+  V.birds = { lines, pos, count };
+  updateBirds();
+}
+
+function updateBirds() {
+  if (!V.birds) return;
+  const { pos, count, lines } = V.birds;
+  for (let i = 0; i < count; i++) {
+    const a = V.time * (0.16 + i * 0.008) + (i / count) * Math.PI * 2;
+    const r = 18 + (i % 3) * 5;
+    const cx = -4 + Math.cos(a) * r;
+    const cz = 48 + Math.sin(a) * r * 0.72;
+    const cy = 31 + (i % 4) * 1.7 + Math.sin(a * 2.1) * 0.8;
+    const tx = -Math.sin(a), tz = Math.cos(a);
+    const nx = -tz, nz = tx;
+    const wing = Math.sin(V.time * 4.2 + i) * 0.28;
+    const o = i * 12;
+    pos[o] = cx + nx * 1.15; pos[o + 1] = cy + wing; pos[o + 2] = cz + nz * 1.15;
+    pos[o + 3] = cx; pos[o + 4] = cy; pos[o + 5] = cz;
+    pos[o + 6] = cx; pos[o + 7] = cy; pos[o + 8] = cz;
+    pos[o + 9] = cx - nx * 1.15; pos[o + 10] = cy + wing; pos[o + 11] = cz - nz * 1.15;
+  }
+  lines.geometry.attributes.position.needsUpdate = true;
+}
+
 // ===========================================================================
 // OCEAN
 // ===========================================================================
 function buildOcean() {
-  const seg = V.quality === "high" ? 128 : 64;
-  const geo = new THREE.PlaneGeometry(OCEAN_SIZE, OCEAN_SIZE, seg, seg);
-  geo.rotateX(-Math.PI / 2); // lie flat: local x,z horizontal, y up
+  // Geometry carries only the broad silhouette. Every lighting normal below is
+  // reconstructed analytically per pixel, so triangle boundaries can never show.
+  const geo = buildOceanGeometry();
 
   const deep = new THREE.Color(COL.seaDeep);
   const crest = new THREE.Color(COL.seaCrest);
   const shallow = new THREE.Color(COL.seaShallow);
-  const cream = new THREE.Color(COL.cream);
   const fog = new THREE.Color(COL.haze);
-  // White-gold glitter for the sun road on the crests.
   const glint = new THREE.Color(0xfff6e0);
-  // Island centres + shore radius packed as vec3(x, z, shoreR) so the shader can
-  // paint a turquoise shallows ring around every shore. Filled after the islands
-  // are built (setOceanShallows); up to five islands are supported (point 3).
-  const islandVecs = [];
-  for (let i = 0; i < 5; i++) islandVecs.push(new THREE.Vector3(0, 0, -1));
+  const skyZenith = new THREE.Color(COL.skyZenith);
+  const skyHorizon = new THREE.Color(COL.skyHorizon);
 
   const mat = new THREE.ShaderMaterial({
     uniforms: {
@@ -1083,16 +1632,21 @@ function buildOcean() {
       uCrest: { value: new THREE.Vector3(crest.r, crest.g, crest.b) },
       uShallow: { value: new THREE.Vector3(shallow.r, shallow.g, shallow.b) },
       uGlint: { value: new THREE.Vector3(glint.r, glint.g, glint.b) },
-      uCream: { value: new THREE.Vector3(cream.r, cream.g, cream.b) },
+      uSkyZenith: { value: new THREE.Vector3(skyZenith.r, skyZenith.g, skyZenith.b) },
+      uSkyHorizon: { value: new THREE.Vector3(skyHorizon.r, skyHorizon.g, skyHorizon.b) },
       uFogColor: { value: new THREE.Vector3(fog.r, fog.g, fog.b) },
       uFogDensity: { value: FOG_DENSITY },
       uAmp: { value: WAVE_AMP_TOTAL },
-      uTonemap: { value: V.quality === "high" ? 0.0 : 1.0 },
-      // Ship world position (xz) drives the calm ring in the vertex height fn.
+      uTonemap: { value: V.composer ? 0.0 : 1.0 },
       uShipPos: { value: new THREE.Vector3() },
-      // Turquoise shallows: island centres/shore-radii and how many are active.
-      uIslands: { value: islandVecs },
-      uIslandCount: { value: 0 },
+      uTerrainHeight: { value: V.terrainTextures.height },
+      uTerrainSdf: { value: V.terrainTextures.sdf },
+      uTerrainSplat: { value: V.terrainTextures.splat },
+      uTerrainBounds: { value: new THREE.Vector4(
+        TERRAIN_BOUNDS.minX, TERRAIN_BOUNDS.minZ,
+        TERRAIN_BOUNDS.maxX, TERRAIN_BOUNDS.maxZ,
+      ) },
+      uTerrainTextureSize: { value: new THREE.Vector2(TERRAIN_BOUNDS.width, TERRAIN_BOUNDS.height) },
     },
     vertexShader: `
       precision highp float;
@@ -1102,11 +1656,6 @@ function buildOcean() {
       varying float vH;
       ${oceanHeightGLSL()}
       void main(){
-        // Displace from ABSOLUTE world-space xz. modelMatrix carries the plane's
-        // follow offset, so the shader samples the exact same wave function at the
-        // exact same coordinates as the CPU buoyancy (waveHeight(x, z, t)). There
-        // is no separate offset uniform that could drift out of sync with the
-        // plane position, so CPU and GPU never diverge, at any distance.
         vec4 wp = modelMatrix * vec4(position, 1.0);
         float h = oceanHeight(wp.xz, uTime);
         wp.y += h;
@@ -1115,78 +1664,8 @@ function buildOcean() {
         gl_Position = projectionMatrix * viewMatrix * wp;
       }
     `,
-    fragmentShader: `
-      precision highp float;
-      uniform vec3 uCamPos, uMoonDir, uDeep, uCrest, uShallow, uGlint, uCream, uFogColor;
-      uniform vec3 uIslands[5];
-      uniform float uFogDensity, uAmp, uTonemap, uIslandCount;
-      varying vec3 vWorld;
-      varying float vH;
-
-      vec3 aces(vec3 x){
-        float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14;
-        return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
-      }
-
-      void main(){
-        // Faceted flat normal from screen-space derivatives of world position.
-        vec3 n = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-        if(n.y < 0.0) n = -n;
-        vec3 viewDir = normalize(uCamPos - vWorld);
-        float hn = clamp(vH / uAmp * 0.5 + 0.5, 0.0, 1.0);
-
-        // Base water: vivid deep blue rising to a brighter crest blue.
-        vec3 col = mix(uDeep, uCrest, smoothstep(0.2, 0.9, hn));
-
-        // Turquoise shallows: tint toward bright turquoise within a band of the
-        // nearest island shore (distance to centre minus shore radius) (point 3).
-        float ring = 0.0;
-        for(int i = 0; i < 5; i++){
-          if(float(i) >= uIslandCount) break;
-          vec2 ic = uIslands[i].xy;
-          float shoreR = uIslands[i].z;
-          float dd = distance(vWorld.xz, ic) - shoreR;
-          ring = max(ring, smoothstep(16.0, 1.0, dd));
-        }
-        col = mix(col, uShallow, ring * 0.6);
-
-        // Subtle sun diffuse lift on the crest facets.
-        float diff = max(dot(n, uMoonDir), 0.0);
-        col += uCrest * diff * 0.10;
-
-        // White-gold sparkle where the surface faces the sun: the sun road.
-        vec3 hlf = normalize(uMoonDir + viewDir);
-        float spec = pow(max(dot(n, hlf), 0.0), 90.0);
-        col += uGlint * spec * 0.85;
-
-        // Brighter white foam on the highest crest tips, capped under the bloom
-        // knee so whitecaps sparkle without blooming.
-        float foam = smoothstep(0.86, 0.99, hn);
-        col = mix(col, vec3(0.82, 0.86, 0.92), foam * 0.24);
-
-        // Subtle blue facet definition so the low-poly surface always reads.
-        float up = clamp(n.y, 0.0, 1.0);
-        col += uCrest * up * 0.07;
-
-        // Hazy horizon: distant glancing water melts into the bright haze so the
-        // sea meets the sky like the reference (point 3, point 4).
-        float fres = pow(1.0 - max(dot(n, viewDir), 0.0), 5.0);
-        col = mix(col, uFogColor, fres * 0.28);
-
-        // Exponential-squared fog to match scene FogExp2.
-        float dist = length(uCamPos - vWorld);
-        float f = clamp(exp(-pow(uFogDensity * dist, 2.0)), 0.0, 1.0);
-        col = mix(uFogColor, col, f);
-
-        if(uTonemap > 0.5){
-          col = aces(col);
-          col = pow(col, vec3(1.0/2.2));
-        }
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
+    fragmentShader: buildOceanFragmentShader(oceanHeightGLSL()),
   });
-  mat.extensions = { derivatives: true };
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   mesh.name = "ocean";
@@ -1195,52 +1674,65 @@ function buildOcean() {
   V.oceanMat = mat;
 }
 
-// Push each island's centre and shore radius into the ocean shader so it paints
-// a turquoise shallows ring hugging every shore (point 3). Called once after the
-// islands are built; the shore radius matches the sandy ring so the tint sits on
-// the shallows and fades out over open sea.
-function setOceanShallows() {
-  if (!V.oceanMat) return;
-  const arr = V.oceanMat.uniforms.uIslands.value;
-  const n = Math.min(5, V.islands.length);
-  for (let i = 0; i < n; i++) {
-    const isl = V.islands[i];
-    arr[i].set(isl.center.x, isl.center.z, isl.radius * 1.2);
-  }
-  V.oceanMat.uniforms.uIslandCount.value = n;
+function buildOceanGeometry() {
+  const geometry = new THREE.PlaneGeometry(
+    OCEAN_SIZE,
+    OCEAN_SIZE,
+    V.profile.oceanSegments,
+    V.profile.oceanSegments,
+  );
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
 }
 
+// Kept as an initialization hook; the ocean now samples TerrainField directly.
+function setOceanShallows() {}
+
 // ===========================================================================
-// BOUNDARY: sparse instanced rocks ringing the far edge of the play area.
+// BOUNDARY: a few distant, fog-softened limestone islets beyond the play area.
 // ===========================================================================
 function buildBoundary() {
-  const count = 46;
-  const geo = new THREE.IcosahedronGeometry(1, 0);
-  jitterGeometry(geo, 0.28);
+  const count = 8;
+  // An indexed sphere keeps shared smooth normals. Gentle low-frequency radial
+  // weathering avoids both perfect balls and the old triangular shard silhouette.
+  const geo = new THREE.SphereGeometry(1, 16, 10);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const a = Math.atan2(z, x);
+    const weathering = 1 + Math.sin(a * 3 + y * 2.1) * 0.055 + Math.sin(a * 5 - y) * 0.025;
+    pos.setXYZ(i, x * weathering, y * (0.94 + Math.cos(a * 2) * 0.035), z * weathering);
+  }
+  pos.needsUpdate = true;
+  geo.scale(1, 0.62, 1);
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({
-    color: COL.rock,
-    roughness: 1.0,
+  const mat = pbrMaterial({
+    color: 0xb9ad91,
+    roughness: 0.98,
     metalness: 0.0,
-    flatShading: true,
-  });
+    flatShading: false,
+    fog: true,
+  }, "stone");
   const inst = new THREE.InstancedMesh(geo, mat, count);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + Math.random() * 0.3;
-    const r = PLAY_R + 6 + Math.random() * 26;
-    p.set(Math.cos(a) * r, -1.4 + Math.random() * 1.2, Math.sin(a) * r);
-    q.setFromEuler(new THREE.Euler(Math.random(), Math.random() * Math.PI * 2, Math.random()));
-    const sc = 3 + Math.random() * 7;
-    s.set(sc * (0.7 + Math.random() * 0.6), sc * (0.6 + Math.random() * 0.7), sc * (0.7 + Math.random() * 0.6));
+    const a = (i / count) * Math.PI * 2 + Math.sin(i * 2.37) * 0.16;
+    const r = PLAY_R + 125 + (i % 3) * 17;
+    p.set(Math.cos(a) * r, -5.8 - (i % 2) * 0.8, Math.sin(a) * r);
+    q.setFromEuler(new THREE.Euler(0, i * 1.91, 0));
+    const sc = 8.5 + (i % 4) * 1.35;
+    s.set(sc * (1.1 + (i % 2) * 0.12), sc, sc * (0.92 + (i % 3) * 0.08));
     m.compose(p, q, s);
     inst.setMatrixAt(i, m);
   }
   inst.instanceMatrix.needsUpdate = true;
   inst.frustumCulled = false;
+  inst.name = "distant-weathered-islets";
   V.scene.add(inst);
 }
 
@@ -1253,18 +1745,15 @@ function loadModels(onProg) {
     "temple",
     "column",
     "ruins-columns",
-    "tree-cypress",
     "lighthouse",
     "dock",
     "rowboat",
     "boat-sail",
     "amphora",
-    "rocks-a",
-    "rocks-b",
   ];
   const manager = new THREE.LoadingManager();
   manager.onProgress = (url, loaded, total) => {
-    if (total > 0) onProg((loaded / total) * 0.98);
+    if (total > 0) onProg(loaded / total);
   };
   const loader = new GLTFLoader(manager);
   const out = {};
@@ -1290,8 +1779,10 @@ function loadModels(onProg) {
 }
 
 function reportProgress(p) {
-  if (V && typeof V.opts.onProgress === "function") {
-    V.opts.onProgress(Math.max(0, Math.min(1, p)));
+  if (!V) return;
+  V.lastProgress = Math.max(V.lastProgress, Math.max(0, Math.min(1, p)));
+  if (typeof V.opts.onProgress === "function") {
+    V.opts.onProgress(V.lastProgress);
   }
 }
 
@@ -1302,7 +1793,7 @@ function reportProgress(p) {
 // model itself would erase the recenter and drop props whose GLB pivot sits at
 // their center straight into the terrain). The wrapper's origin is the model's
 // base-center, so wrapper.position.y is exactly the seat height.
-function prepModel(src, target, mode) {
+function prepModel(src, target, mode, materialRole = "preserve") {
   const obj = src.clone(true);
   const box = new THREE.Box3().setFromObject(obj);
   const size = new THREE.Vector3();
@@ -1319,23 +1810,67 @@ function prepModel(src, target, mode) {
   obj.position.x -= c.x;
   obj.position.z -= c.z;
   obj.position.y -= box2.min.y;
-  dressModel(obj);
+  dressModel(obj, materialRole);
   const wrap = new THREE.Group();
   wrap.add(obj);
   return wrap;
 }
 
-function dressModel(root) {
+function pbrMaterial(parameters, role = "default") {
+  const material = new THREE.MeshStandardMaterial(parameters);
+  material.envMapIntensity = ENV_MAP_INTENSITY[role] ?? ENV_MAP_INTENSITY.default;
+  material.userData.environmentRole = role;
+  return material;
+}
+
+function dressModel(root, materialRole) {
   root.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = false;
-      o.receiveShadow = false;
+      o.receiveShadow = true;
+      // GLTF clone(true) intentionally shares materials. Clone them here before
+      // dressing so a stone landmark cannot recolour a boat/tree instance.
+      o.material = Array.isArray(o.material)
+        ? o.material.map((m) => m && m.clone())
+        : (o.material && o.material.clone());
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) {
         if (!m) continue;
-        if ("roughness" in m) m.roughness = Math.min(1, (m.roughness == null ? 0.8 : m.roughness) + 0.18);
-        if ("metalness" in m) m.metalness = 0.0;
-        if ("envMapIntensity" in m) m.envMapIntensity = 0;
+        const role = ENV_MAP_INTENSITY[materialRole] != null ? materialRole : "default";
+        if ("roughness" in m) {
+          const sourceRoughness = m.roughness == null ? 0.8 : m.roughness;
+          m.roughness = materialRole === "ship"
+            ? Math.max(0.55, Math.min(0.9, sourceRoughness + 0.06))
+            : Math.min(1, sourceRoughness + 0.18);
+        }
+        if ("metalness" in m && materialRole !== "ship") m.metalness = 0.0;
+        if ("envMapIntensity" in m) m.envMapIntensity = ENV_MAP_INTENSITY[role];
+        m.userData.environmentRole = role;
+        if ((materialRole === "ship" || materialRole === "weathered-boat") && m.emissive) {
+          m.emissive.set(0x000000);
+          m.emissiveIntensity = 0;
+          m.toneMapped = true;
+        }
+        if (materialRole === "weathered-boat") {
+          const isCloth = /sail|cloth|canvas/i.test(m.name || "");
+          if ("vertexColors" in m) m.vertexColors = false;
+          if ("map" in m) m.map = null;
+          if (m.color) m.color.set(isCloth ? 0xb9b3a4 : 0x7d715e);
+          if ("roughness" in m) m.roughness = 0.94;
+          if ("metalness" in m) m.metalness = 0;
+          m.needsUpdate = true;
+        }
+        if (materialRole === "ceramic") {
+          if ("vertexColors" in m) m.vertexColors = false;
+          if ("map" in m) m.map = null;
+          if (m.color) m.color.set(0x986f52);
+          if (m.emissive) {
+            m.emissive.set(0x000000);
+            m.emissiveIntensity = 0;
+          }
+          if ("roughness" in m) m.roughness = 0.88;
+          m.needsUpdate = true;
+        }
         m.fog = true;
       }
     }
@@ -1356,7 +1891,7 @@ function buildShip(models) {
   let usedModel = false;
   if (models.ship) {
     try {
-      const ship = prepModel(models.ship, 6, "max");
+      const ship = prepModel(models.ship, 6, "max", "ship");
       // Quaternius sail ship native forward is +Z; nudged upright by prep.
       // Lift so the hull waterline sits a touch below the deck origin.
       ship.position.y -= 1.1;
@@ -1374,7 +1909,7 @@ function buildShip(models) {
   // it never reads as a lit lamp at noon; only a dim warm bead remains (point 5).
   const lantern = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 12, 10),
-    new THREE.MeshStandardMaterial({
+    pbrMaterial({
       color: 0x3a2a12,
       emissive: new THREE.Color(0xffcf99),
       emissiveIntensity: 0.4,
@@ -1384,30 +1919,28 @@ function buildShip(models) {
   lantern.position.set(0, 2.0, -2.6);
   hullGroup.add(lantern);
 
-  const lampLight = new THREE.PointLight(0xffcf99, 0.0, 22, 2.0);
-  lampLight.position.set(0, 2.2, -2.4);
-  hullGroup.add(lampLight);
-
-  // Record the resting intensities so the flicker random walk multiplies from
-  // a stable base (N4).
-  V.lantern.base = lampLight.intensity;
+  // The lantern keeps a tiny emissive bead, but no daytime point light. The two
+  // tour-only dock/beat lights are the scene's only local lights.
+  const lampLight = null;
+  V.lantern.base = 0;
   V.lantern.emissive = lantern.material.emissiveIntensity;
 
   V.ship = { group, hull: hullGroup, lantern, light: lampLight };
+  configureDynamicShadowReceiver(group);
 
   buildWake();
 }
 
 function buildProceduralShip() {
   const g = new THREE.Group();
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.85, flatShading: true });
-  const darkWood = new THREE.MeshStandardMaterial({ color: 0x3e2a18, roughness: 0.9, flatShading: true });
-  const sailMat = new THREE.MeshStandardMaterial({
+  const woodMat = pbrMaterial({ color: 0x6b4a2c, roughness: 0.85, flatShading: true }, "wood");
+  const darkWood = pbrMaterial({ color: 0x3e2a18, roughness: 0.9, flatShading: true }, "wood");
+  const sailMat = pbrMaterial({
     color: 0xefe3c4,
     roughness: 0.95,
     side: THREE.DoubleSide,
     flatShading: true,
-  });
+  }, "ship");
 
   // Hull from a lathe profile.
   const pts = [];
@@ -1445,15 +1978,21 @@ function buildProceduralShip() {
 }
 
 function buildWake() {
-  const max = 64;
-  // Warm-neutral cream foam rather than cool blue-grey puffs (F4).
+  // A dense pool lets the two stern rails overlap continuously for their full
+  // fade without recycling a still-visible element.
+  const max = V.profile.wakeCount;
+  // Warm-neutral cream foam rather than cool blue-grey puffs (F4). The texture
+  // is deliberately stretched on horizontal planes; camera-facing sprites read
+  // as round, detached clouds from the sailing camera.
   const tex = makeGlowTexture(COL.wake, 0.42);
+  const geo = new THREE.PlaneGeometry(1, 1);
+  geo.rotateX(-Math.PI / 2);
   const sprites = [];
   const container = new THREE.Group();
   container.name = "wake";
   V.scene.add(container);
   for (let i = 0; i < max; i++) {
-    const mat = new THREE.SpriteMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map: tex,
       color: COL.wake,
       transparent: true,
@@ -1461,14 +2000,15 @@ function buildWake() {
       blending: THREE.NormalBlending,
       depthWrite: false,
       fog: true,
+      side: THREE.DoubleSide,
     });
-    const sp = new THREE.Sprite(mat);
-    sp.scale.setScalar(0.45);
+    const sp = new THREE.Mesh(geo, mat);
+    sp.scale.set(0.2, 1, 0.95);
     sp.visible = false;
     container.add(sp);
-    sprites.push({ sp, life: 0, ttl: 1, baseScale: 0.45, vx: 0, vz: 0 });
+    sprites.push({ sp, life: 0, ttl: 1, width: 0.2, length: 0.95, strength: 1, vx: 0, vz: 0 });
   }
-  V.wake = { container, sprites, cursor: 0, timer: 0 };
+  V.wake = { container, sprites, cursor: 0, timer: 0, activeCount: max };
 }
 
 function spawnWake(dt) {
@@ -1481,25 +2021,30 @@ function spawnWake(dt) {
   }
   w.timer -= dt;
   if (w.timer > 0) return;
-  w.timer = 0.13;
-  // Emit two small foam specks at the stern quarters that drift outward, so the
-  // wake reads as a thin opening V rather than a bright cone.
+  w.timer = V.profile.wakeInterval;
+  // Emit two overlapping, heading-aligned strokes at the stern quarters. Their
+  // low lateral drift opens the rails into a gentle V over several seconds.
   _fwd.set(Math.sin(V.heading), 0, Math.cos(V.heading));
   const rx = Math.cos(V.heading);
   const rz = -Math.sin(V.heading);
   for (const side of [-1, 1]) {
     const s = w.sprites[w.cursor];
-    w.cursor = (w.cursor + 1) % w.sprites.length;
-    const px = V.pos.x - _fwd.x * 2.6 + rx * side * 0.6 + (Math.random() - 0.5) * 0.4;
-    const pz = V.pos.z - _fwd.z * 2.6 + rz * side * 0.6 + (Math.random() - 0.5) * 0.4;
-    s.sp.position.set(px, waveHeight(px, pz, V.time) + 0.1, pz);
+    w.cursor = (w.cursor + 1) % w.activeCount;
+    const jitter = (Math.random() - 0.5) * 0.08;
+    const px = V.pos.x - _fwd.x * 2.45 + rx * (side * 0.34 + jitter);
+    const pz = V.pos.z - _fwd.z * 2.45 + rz * (side * 0.34 + jitter);
+    s.sp.position.set(px, waveHeight(px, pz, V.time) + 0.115, pz);
+    s.sp.rotation.set(0, V.heading, 0);
     s.sp.visible = true;
     s.life = 0;
-    s.ttl = 0.85 + Math.random() * 0.4;
-    s.baseScale = 0.34 + Math.random() * 0.24;
-    // Drift outward and a touch backward for a spreading tail.
-    s.vx = rx * side * 1.3 - _fwd.x * 0.6;
-    s.vz = rz * side * 1.3 - _fwd.z * 0.6;
+    s.ttl = V.profile.wakeLifetime + Math.random() * 0.25;
+    s.width = 0.18 + Math.random() * 0.07;
+    s.length = 0.9 + Math.random() * 0.22;
+    s.strength = Math.min(1, (speedFrac - 0.2) / 0.65);
+    s.sp.scale.set(s.width, 1, s.length);
+    // World-space foam lingers behind the moving hull and only fans outward.
+    s.vx = rx * side * 0.42;
+    s.vz = rz * side * 0.42;
   }
 }
 
@@ -1517,45 +2062,282 @@ function updateWake(dt) {
     }
     s.sp.position.x += s.vx * dt;
     s.sp.position.z += s.vz * dt;
-    // Brighter white foam so the wake reads clearly on the vivid blue sea (F4).
-    s.sp.material.opacity = Math.sin(t * Math.PI) * 0.17;
-    const sc = s.baseScale * (1 + t * 1.15);
-    s.sp.scale.setScalar(sc);
+    s.sp.position.y = waveHeight(s.sp.position.x, s.sp.position.z, V.time) + 0.115;
+    // Quick feather-in, long dissolve. Peak alpha stays below the threshold at
+    // which any one stroke becomes readable as an individual foam puff.
+    const fadeIn = Math.min(1, t / 0.1);
+    const fadeOut = Math.pow(1 - t, 1.45);
+    s.sp.material.opacity = fadeIn * fadeOut * 0.105 * s.strength;
+    s.sp.scale.set(s.width * (1 + t * 1.15), 1, s.length * (1 + t * 0.42));
   }
 }
 
 // ===========================================================================
 // ISLANDS
 // ===========================================================================
+function materialCanCastShadow(material) {
+  return !!material
+    && !material.transparent
+    && (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial);
+}
+
+function configureStaticShadowSubtree(root) {
+  if (!root) return;
+  const visit = (object) => {
+    if (object.userData && object.userData.shadowExcludeSubtree) return;
+    if (object.isMesh) {
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      if (materials.some(materialCanCastShadow)) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    }
+    for (const child of object.children) visit(child);
+  };
+  visit(root);
+}
+
+function configureDynamicShadowReceiver(root) {
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    if (materials.some((material) => material && (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial))) {
+      object.castShadow = false;
+      object.receiveShadow = true;
+    }
+  });
+}
+
+function contactPatchMaterial(opacity = 0.14) {
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+    uniforms: {
+      uColor: { value: new THREE.Color(0x2a241a) },
+      uOpacity: { value: opacity },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vec4 localPosition = vec4(position, 1.0);
+        #ifdef USE_INSTANCING
+          localPosition = instanceMatrix * localPosition;
+        #endif
+        gl_Position = projectionMatrix * modelViewMatrix * localPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      void main() {
+        float radius = length(vUv - 0.5) * 2.0;
+        float alpha = (1.0 - smoothstep(0.12, 1.0, radius)) * uOpacity;
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `,
+  });
+  material.name = "terrain-contact-darkening";
+  return material;
+}
+
+function addLandmarkContactPatch(island, topY) {
+  const radii = { origins: 9.6, forge: 6.0, labors: 10.8, voyages: 7.2, oracle: 5.2 };
+  const radius = radii[island.id] || 4.5;
+  const geometry = new THREE.CircleGeometry(radius, 40);
+  geometry.rotateX(-Math.PI / 2);
+  const patch = new THREE.Mesh(geometry, contactPatchMaterial(island.id === "labors" ? 0.16 : 0.13));
+  patch.position.set(0, groundY(island, 0, 0, topY) + 0.035, 0);
+  patch.renderOrder = 1;
+  patch.userData.shadowExcludeSubtree = true;
+  patch.name = `${island.id}-foundation-contact-ao`;
+  island.group.add(patch);
+}
+
+function registerR6Draw(mesh, key) {
+  if (!mesh) return mesh;
+  mesh.userData.r6Landmark = key;
+  V.r6Census[key] = (V.r6Census[key] || 0) + 1;
+  return mesh;
+}
+
+function buildMergedGlbFoundation(source, target, mode, material, key, width, depth, skirtHeight = 0.24, contact = null, geometryOptions = {}) {
+  const raw = mergeGlbLandmark(source, target, mode, material, `${key}-raw-merged`, geometryOptions);
+  const assembly = new THREE.Group();
+  const foundationTop = contact ? contact.max + 0.04 : skirtHeight;
+  raw.position.y = foundationTop;
+  assembly.add(raw);
+  const skirtGeometry = contact
+    ? terrainFoundationGeometry(width, depth, foundationTop, contact.samples, contact.spec.sink)
+    : foundationGeometry(width, depth, skirtHeight, key === "lighthouse" ? 18 : 4);
+  const skirt = new THREE.Mesh(skirtGeometry, material);
+  if (!contact) skirt.position.y = skirtHeight * 0.5;
+  assembly.add(skirt);
+  const merged = mergeScenePrimitives(assembly, material, `${key}-merged-with-foundation`);
+  raw.geometry.dispose();
+  return registerR6Draw(merged, key);
+}
+
+function landmarkFootprint(island, spec) {
+  const pad = TERRAIN_PAD_BY_ID.get(island.id);
+  const contact = sampleFootprintY(V.terrainField, pad, spec);
+  contact.spec = spec;
+  if (contact.span > spec.tolerance + 1e-6) {
+    throw new Error(`R6 footprint exceeds tolerance for ${spec.id}: ${contact.span.toFixed(3)}/${spec.tolerance}`);
+  }
+  return contact;
+}
+
+function auditR6Materials(island) {
+  const invalid = [];
+  island.group.traverse((object) => {
+    if (!object.isMesh) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    const bad = !materials.length || materials.some((material) => {
+      if (!material || !material.isMaterial) return true;
+      // THREE.Mesh silently installs a white MeshBasicMaterial when its second
+      // constructor argument is omitted. That is a valid Material object, so an
+      // isMaterial-only audit misses exactly the beige/white backdrop failure.
+      const dataKeys = Object.keys(material.userData || {});
+      const isThreeDefault = material.isMeshBasicMaterial
+        && !material.name
+        && dataKeys.length === 0
+        && material.color && material.color.getHex() === 0xffffff
+        && material.opacity === 1
+        && !material.transparent
+        && !material.map;
+      return isThreeDefault;
+    });
+    if (bad) invalid.push(object.name || object.uuid);
+  });
+  if (invalid.length) {
+    throw new Error(`R6 landmark mesh has missing/default material in ${island.id}: ${invalid.join(", ")}`);
+  }
+}
+
+function measureR6LandmarkHeight(object) {
+  object.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(object);
+  return { box, height: box.max.y - box.min.y };
+}
+
+function normalizeR6LandmarkHeight(object, targetHeight, seatY = null) {
+  let measured = measureR6LandmarkHeight(object);
+  if (!Number.isFinite(measured.height) || measured.height <= 0 || !Number.isFinite(targetHeight)) return measured;
+  const scale = targetHeight / measured.height;
+  object.scale.multiplyScalar(scale);
+  measured = measureR6LandmarkHeight(object);
+  if (Number.isFinite(seatY) && Number.isFinite(measured.box.min.y)) {
+    object.position.y += seatY - measured.box.min.y;
+    measured = measureR6LandmarkHeight(object);
+  }
+  return measured;
+}
+
+function assertR6LandmarkHeight(object, key, seatY = null) {
+  const contract = R6_LANDMARK_CONFIG.landmarkBounds[key];
+  if (!object || !contract) return;
+  let { height } = measureR6LandmarkHeight(object);
+  if (Number.isFinite(height) && height >= contract.minHeight && height <= contract.maxHeight) return;
+
+  // A runtime scale miss is cosmetic, not fatal. Try one deterministic repair
+  // against the authored target, then keep the voyage alive even if malformed
+  // source geometry still cannot satisfy the release bounds.
+  if (Number.isFinite(height) && height > 0 && Number.isFinite(contract.height)) {
+    ({ height } = normalizeR6LandmarkHeight(object, contract.height, seatY));
+  }
+  if (!Number.isFinite(height) || height < contract.minHeight || height > contract.maxHeight) {
+    const label = Number.isFinite(height) ? height.toFixed(2) : String(height);
+    console.error(
+      `[voyage] R6 landmark scale regression after auto-correction: ${key} Box3 height ${label}u is outside ` +
+      `${contract.minHeight}-${contract.maxHeight}u; continuing with the landmark as loaded`,
+    );
+  }
+}
+
+function terrainNormalAt(x, z) {
+  const field = V.terrainField;
+  const e = Math.max(field.dx, field.dz);
+  const hx0 = field.sampleHeight(x - e, z), hx1 = field.sampleHeight(x + e, z);
+  const hz0 = field.sampleHeight(x, z - e), hz1 = field.sampleHeight(x, z + e);
+  return new THREE.Vector3(-(hx1 - hx0) / (2 * e), 1, -(hz1 - hz0) / (2 * e)).normalize();
+}
+
+function registerLandmarkDebris(island, radius, count, phase = 0) {
+  if (!island.landmarkDebris) island.landmarkDebris = [];
+  for (let i = 0; i < count; i++) {
+    const angle = phase + i * 2.399963229728653;
+    const distance = radius * (0.78 + ((i * 37) % 17) / 42);
+    const x = island.center.x + Math.cos(angle) * distance;
+    const z = island.center.z + Math.sin(angle) * distance;
+    const y = V.terrainField.sampleHeight(x, z);
+    if (y == null) continue;
+    island.landmarkDebris.push({
+      x, y, z,
+      normal: terrainNormalAt(x, z),
+      debrisScale: [0.16, 0.68],
+    });
+  }
+}
+
+function originsHeroTrees(island) {
+  const specs = [
+    ["cypress", -6.5, 4.8, 1.38, 1.16],
+    ["cypress", 5.8, -5.8, 1.26, 1.12],
+    ["olive", -5.2, -5.4, 1.18, 1.12],
+    ["olive", 8.0, -2.0, 1.14, 1.18],
+  ];
+  return specs.map(([type, lx, lz, heroHeightScale, heroWidthScale]) => {
+    const x = island.center.x + lx;
+    const z = island.center.z + lz;
+    return {
+      type, x, z,
+      y: V.terrainField.sampleHeight(x, z),
+      normal: terrainNormalAt(x, z),
+      heroHeightScale,
+      heroWidthScale,
+    };
+  });
+}
+
 function buildIslands(models) {
-  // Shared island material palette. Daylight is bright enough that the cool
-  // night emissive floor is no longer needed; the warm sun, sky-blue hemisphere
-  // and cool fill keep every flank luminous with no black voids (point 5).
-  const matRock = new THREE.MeshStandardMaterial({ color: COL.rock, roughness: 1.0, metalness: 0, flatShading: true });
-  const matRockL = new THREE.MeshStandardMaterial({ color: COL.rockLight, roughness: 1.0, metalness: 0, flatShading: true });
-  const matSand = new THREE.MeshStandardMaterial({ color: COL.sand, roughness: 1.0, metalness: 0, flatShading: true });
-  const matFoliage = new THREE.MeshStandardMaterial({ color: COL.foliage, roughness: 1.0, metalness: 0, flatShading: true });
+  const matRock = pbrMaterial({ color: COL.rock, roughness: 0.96, metalness: 0, flatShading: false }, "stone");
+  const matRockL = pbrMaterial({ color: COL.rockLight, roughness: 0.94, metalness: 0, flatShading: false }, "stone");
+  const matSand = pbrMaterial({ color: COL.sand, roughness: 0.98, metalness: 0, flatShading: false }, "wetTerrain");
+  const matFoliage = pbrMaterial({ color: COL.foliage, roughness: 1.0, metalness: 0, flatShading: false }, "foliage");
   const shared = { matRock, matRockL, matSand, matFoliage };
+  const terrain = buildUnifiedIslandTerrain();
+  V.scene.add(terrain);
+  terrain.updateMatrixWorld(true);
+  V.terrain = terrain;
+  terrain.castShadow = true;
+  terrain.receiveShadow = true;
+  const cliffBand = buildCliffBand();
+  if (cliffBand) {
+    V.scene.add(cliffBand);
+    V.cliffBand = cliffBand;
+    cliffBand.castShadow = true;
+    cliffBand.receiveShadow = true;
+  }
 
   ISLAND_DEFS.forEach((def, idx) => {
-    const a = (def.ang * Math.PI) / 180;
-    const cx = Math.cos(a) * ISLAND_R;
-    const cz = Math.sin(a) * ISLAND_R;
+    const cx = def.center[0];
+    const cz = def.center[1];
     const group = new THREE.Group();
     group.position.set(cx, 0, cz);
     V.scene.add(group);
-
-    const base = buildIslandBase(def.radius, shared);
-    group.add(base.group);
-
-    // Beacon pillar (slim additive amber) at the island center.
-    const beacon = buildBeacon(base.topY + 4);
-    beacon.position.y = 0;
+    group.updateMatrixWorld(true);
+    const sampledTop = surfaceYAt(cx, cz, [terrain]);
+    const topY = sampledTop == null ? islandHeightLocal(cx - MAIN_ISLAND.x, cz - MAIN_ISLAND.z) : sampledTop;
+    const beacon = buildBeacon(8);
+    beacon.position.y = topY;
     group.add(beacon);
-
-    // Surface meshes for the build-time prop grounder (TASK A). Oracle appends
-    // its peak cone to this list once it is built.
-    group.updateWorldMatrix(true, true);
+    const dockPoint = new THREE.Vector3(def.dock[0], 0, def.dock[1]);
+    const outward = new THREE.Vector2(dockPoint.x - MAIN_ISLAND.x, dockPoint.z - MAIN_ISLAND.z).normalize();
 
     const island = {
       def,
@@ -1564,19 +2346,16 @@ function buildIslands(models) {
       numeral: COPY.numerals[idx] || "",
       group,
       beacon,
-      groundTargets: base.targets.slice(),
-      // Plausible surface band for seat-Y sanity: from just below the waterline to
-      // well above the dome top (headroom covers the Oracle peak added later). A
-      // ray that tunnels to the dome underside falls outside this and is rejected.
+      groundTargets: [terrain],
       surfLoY: -2,
-      surfHiY: base.topY + 14,
+      surfHiY: 42,
       center: new THREE.Vector3(cx, 0, cz),
+      dockPoint,
+      outward,
       radius: def.radius,
-      // Soft grounding radius: just past the sandy shore so the hull beaches on
-      // the sand rather than punching into the rock (F1).
-      collideR: def.radius * 1.12 + 3,
-      topY: base.topY,
-      lookHeight: base.topY + 4,
+      collideR: 0,
+      topY,
+      lookHeight: topY + 5,
       inRange: false,
       embers: null,
       // Beat tour: camera poses precomputed from the island props (B2). Each is
@@ -1587,21 +2366,24 @@ function buildIslands(models) {
     // Island-specific props.
     switch (def.kind) {
       case "origins":
-        buildOrigins(group, base.topY, models, shared, island);
+        buildOrigins(group, topY, models, shared, island);
         break;
       case "forge":
-        buildForge(group, base.topY, models, shared, island);
+        buildForge(group, topY, models, shared, island);
         break;
       case "labors":
-        buildLabors(group, base.topY, models, shared, island);
+        buildLabors(group, topY, models, shared, island);
         break;
       case "voyages":
-        buildVoyages(group, base.topY, models, shared, island);
+        buildVoyages(group, topY, models, shared, island);
         break;
       case "oracle":
-        buildOracle(group, base.topY, models, shared, island);
+        buildOracle(group, topY, models, shared, island);
         break;
     }
+
+    addLandmarkContactPatch(island, topY);
+    configureStaticShadowSubtree(group);
 
     // Frame each beat's anchor off to one side (alternating) so the anchored
     // card has clear space and the leader line reads intentionally (B1).
@@ -1609,20 +2391,254 @@ function buildIslands(models) {
     // Precompute each beat's highlight-light position from its exhibit anchor (B6).
     finalizeBeats(island);
 
-    // Sparse warm dust motes drifting near this island (N6). Skipped on low
-    // quality to protect the mobile frame budget.
-    if (V.quality === "high") buildMotes(island);
+    // Sparse warm dust motes drift on desktop tiers and are omitted on mobile.
+    if (V.profile.motes) buildMotes(island);
 
     // A golden beacon flame at the pillar top, dark until this chapter is
     // visited (point 6).
     buildFlame(island, group);
+    // Run after every architectural/contact/flame mesh has been attached so a
+    // late default material cannot sit outside the initialization audit.
+    auditR6Materials(island);
 
     V.islands.push(island);
   });
 
-  // Ship starts facing Origins (which sits in front along +Z).
-  V.heading = 0;
-  V.pos.set(0, 0, 0);
+  for (const [key, expected] of Object.entries(R6_LANDMARK_CONFIG.draws)) {
+    const actual = V.r6Census[key] || 0;
+    if (actual !== expected) throw new Error(`R6 draw census drifted for ${key}: ${actual}/${expected}`);
+  }
+
+  const beats = V.islands.flatMap((island) => island.beats || []);
+  V.r5Scatter = buildR5Scatter({
+    renderer: V.renderer,
+    terrainField: V.terrainField,
+    rockMaterial: V.rockMaterial,
+    quality: V.quality,
+    exclusions: {
+      docks: TERRAIN_DOCKS,
+      pads: TERRAIN_PADS,
+      beats,
+      spawn: SPAWN,
+      temple: TERRAIN_PAD_BY_ID.get("labors"),
+    },
+    heroTrees: V.islands.flatMap((island) => island.heroTrees || []),
+    landmarkDebris: V.islands.flatMap((island) => island.landmarkDebris || []),
+  });
+  V.r5Stats = V.r5Scatter.stats;
+  V.r5Scatter.setBudget({
+    targetCounts: V.profile.vegetationCounts,
+    density: V.runtimeVegetationDensity,
+    grassCullDistance: V.profile.grassDistance,
+  });
+  V.r5Scatter.setShadowCasting(V.vegetationShadowsEnabled);
+  V.scene.add(V.r5Scatter.root);
+  V.textures.push(...V.r5Scatter.textures);
+  V.disposables.push(...V.r5Scatter.depthMaterials);
+
+  // The ship begins offshore on the Origins approach, with the dock and summit
+  // aligned beyond its bow so the first W press advances the hero composition.
+  V.heading = SPAWN.heading;
+  V.pos.set(SPAWN.x, 0, SPAWN.z);
+}
+
+// Fail loudly during initialization if a region refactor leaves a dock without
+// a world target or a tour. startTour still has a safe fallback beat, but this
+// invariant keeps the prompt -> E/tap -> docking -> beat flow complete for all
+// five named regions.
+function validateDockSetup() {
+  const errors = [];
+  const expectedTourBeats = {
+    origins: 3,
+    forge: 3,
+    labors: Math.max(1, COPY.projectCount),
+    voyages: Math.min(5, Math.max(1, COPY.experienceCount)),
+    oracle: 2,
+  };
+  const navigation = verifyDockNavigation(V.terrainField, SHORE_SAFE_DISTANCE);
+  const navigationById = new Map(navigation.map((item) => [item.id, item]));
+  for (const def of ISLAND_DEFS) {
+    const island = V.islands.find((item) => item.id === def.id);
+    if (!island) errors.push(`${def.id}: missing island`);
+    else {
+      if (!island.dockPoint || !Number.isFinite(island.dockPoint.x) || !Number.isFinite(island.dockPoint.z)) {
+        errors.push(`${def.id}: invalid dock point`);
+      }
+      if (!Array.isArray(island.beats) || island.beats.length === 0) {
+        island.beats = [defaultBeat(island)];
+        console.warn(`[voyage] ${def.id} had no beats; installed the safe chapter beat`);
+      }
+      if (island.beats.length !== expectedTourBeats[def.id]) {
+        errors.push(`${def.id}: ${island.beats.length}/${expectedTourBeats[def.id]} tour beats`);
+      }
+      island.beats.forEach((beat, index) => {
+        for (const key of ["pos", "look", "anchor"]) {
+          const vector = beat[key];
+          if (!vector || ![vector.x, vector.y, vector.z].every(Number.isFinite)) {
+            errors.push(`${def.id}: beat ${index + 1} has invalid ${key}`);
+          }
+        }
+      });
+      const water = navigationById.get(def.id);
+      if (!water || !water.navigable) errors.push(`${def.id}: less than 7u navigable water`);
+      else island.dockClearance = water.clearance;
+    }
+  }
+  if (errors.length) throw new Error(`Invalid dock setup: ${errors.join(", ")}`);
+  console.info("[voyage] dock navigation", navigation.map((item) => ({
+    id: item.id,
+    clearance: +item.clearance.toFixed(2),
+    channelMinClearance: +item.channelMinClearance.toFixed(2),
+  })));
+}
+
+function islandShapeFieldWorld(x, z) {
+  return V && V.terrainField ? V.terrainField.sampleSdf(x, z) : null;
+}
+
+function islandHeightLocal(x, z) {
+  const y = V && V.terrainField && V.terrainField.sampleHeight(x + MAIN_ISLAND.x, z + MAIN_ISLAND.z);
+  return y == null ? -10.5 : y;
+}
+
+function sampleTerrainLayerWeights(x, z) {
+  const field = V.terrainField;
+  const gx = (x - field.bounds.minX) / field.dx;
+  const gz = (z - field.bounds.minZ) / field.dz;
+  if (gx < 0 || gz < 0 || gx > field.bounds.width - 1 || gz > field.bounds.height - 1) {
+    return [0, 1, 0, 0, 0];
+  }
+  const x0 = Math.floor(gx), z0 = Math.floor(gz);
+  const x1 = Math.min(field.bounds.width - 1, x0 + 1);
+  const z1 = Math.min(field.bounds.height - 1, z0 + 1);
+  const tx = gx - x0, tz = gz - z0;
+  const sample = (array, stride, channel) => {
+    const at = (ix, iz) => array[(iz * field.bounds.width + ix) * stride + channel];
+    const a = at(x0, z0) + (at(x1, z0) - at(x0, z0)) * tx;
+    const b = at(x0, z1) + (at(x1, z1) - at(x0, z1)) * tx;
+    return a + (b - a) * tz;
+  };
+  return [
+    sample(field.splat, 4, 0),
+    sample(field.splat, 4, 1),
+    sample(field.splat, 4, 2),
+    sample(field.splat, 4, 3),
+    sample(field.splatRemainder, 1, 0),
+  ];
+}
+
+function attachTerrainMaterialAttributes(geometry, offsetX = 0, offsetZ = 0) {
+  const position = geometry.attributes.position;
+  const ao = new Float32Array(position.count);
+  const colors = new Float32Array(position.count * 3);
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i) + offsetX;
+    const z = position.getZ(i) + offsetZ;
+    ao[i] = Math.max(0.62, V.terrainField.sampleAO(x, z) || 0.62);
+    const weights = sampleTerrainLayerWeights(x, z);
+    const shade = 0.76 + ao[i] * 0.24;
+    for (let layer = 0; layer < TERRAIN_VERTEX_LAYER_COLORS.length; layer++) {
+      const color = TERRAIN_VERTEX_LAYER_COLORS[layer];
+      colors[i * 3] += color.r * weights[layer] * shade;
+      colors[i * 3 + 1] += color.g * weights[layer] * shade;
+      colors[i * 3 + 2] += color.b * weights[layer] * shade;
+    }
+  }
+  geometry.setAttribute("terrainAO", new THREE.BufferAttribute(ao, 1));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+}
+
+function buildUnifiedIslandTerrain() {
+  const [sx, sz] = V.profile.terrainSegments;
+  const geo = new THREE.PlaneGeometry(
+    TERRAIN_BOUNDS.maxX - TERRAIN_BOUNDS.minX,
+    TERRAIN_BOUNDS.maxZ - TERRAIN_BOUNDS.minZ,
+    sx,
+    sz,
+  );
+  geo.rotateX(-Math.PI / 2);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = V.terrainField.sampleHeight(p.getX(i), p.getZ(i) + MAIN_ISLAND.z);
+    p.setY(i, y == null ? -10.5 : y);
+  }
+  p.needsUpdate = true;
+  geo.computeVertexNormals();
+  attachTerrainMaterialAttributes(geo, MAIN_ISLAND.x, MAIN_ISLAND.z);
+  const terrain = new THREE.Mesh(geo, V.terrainMaterial);
+  terrain.position.set(MAIN_ISLAND.x, 0, MAIN_ISLAND.z);
+  terrain.name = "single-mediterranean-island";
+  return terrain;
+}
+
+function buildCliffBand() {
+  const field = V.terrainField;
+  const angularSamples = 3500;
+  const rows = 4;
+  const coast = new Array(angularSamples);
+  for (let i = 0; i < angularSamples; i++) {
+    const angle = i / angularSamples * Math.PI * 2;
+    const ux = Math.cos(angle), uz = Math.sin(angle);
+    let prevR = 0, prevSdf = field.sampleSdf(MAIN_ISLAND.x, MAIN_ISLAND.z);
+    let hit = null;
+    for (let r = 1; r <= 132; r += 1) {
+      const x = MAIN_ISLAND.x + ux * r, z = MAIN_ISLAND.z + uz * r;
+      const sdf = field.sampleSdf(x, z);
+      if (sdf == null) break;
+      if (prevSdf > 0 && sdf <= 0) {
+        const t = prevSdf / (prevSdf - sdf || 1);
+        const cr = prevR + (r - prevR) * t;
+        const cx = MAIN_ISLAND.x + ux * cr, cz = MAIN_ISLAND.z + uz * cr;
+        const e = Math.max(field.dx, field.dz);
+        let gx = field.sampleSdf(cx + e, cz) - field.sampleSdf(cx - e, cz);
+        let gz = field.sampleSdf(cx, cz + e) - field.sampleSdf(cx, cz - e);
+        const gl = Math.hypot(gx, gz) || 1;
+        gx /= gl; gz /= gl; // SDF gradient points inland.
+        const tx = cx + gx * 4.2, tz = cz + gz * 4.2;
+        const slope = field.sampleSlope(tx, tz) || 0;
+        const bottomY = (field.sampleHeight(cx, cz) || -0.25) - 0.12;
+        const topY = (field.sampleHeight(tx, tz) || bottomY) - 0.08;
+        if (slope > Math.PI * 0.25 && topY - bottomY > 2.5) {
+          hit = { cx: cx + gx * 0.12, cz: cz + gz * 0.12, tx, tz, bottomY, topY };
+        }
+        break;
+      }
+      prevR = r;
+      prevSdf = sdf;
+    }
+    coast[i] = hit;
+  }
+
+  const positions = [];
+  const indices = [];
+  for (let i = 0; i < angularSamples; i++) {
+    const a = coast[i], b = coast[(i + 1) % angularSamples];
+    if (!a || !b || Math.hypot(a.cx - b.cx, a.cz - b.cz) > 1.2) continue;
+    const base = positions.length / 3;
+    for (const point of [a, b]) for (let row = 0; row <= rows; row++) {
+      const t = row / rows;
+      positions.push(
+        point.cx + (point.tx - point.cx) * t,
+        point.bottomY + (point.topY - point.bottomY) * t,
+        point.cz + (point.tz - point.cz) * t,
+      );
+    }
+    for (let row = 0; row < rows; row++) {
+      const a0 = base + row, a1 = a0 + 1;
+      const b0 = base + rows + 1 + row, b1 = b0 + 1;
+      indices.push(a0, b0, a1, a1, b0, b1);
+    }
+  }
+  if (!indices.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  attachTerrainMaterialAttributes(geo);
+  const mesh = new THREE.Mesh(geo, V.terrainMaterial);
+  mesh.name = "terrain-extruded-cliff-band";
+  mesh.userData.triangleCount = indices.length / 3;
+  return mesh;
 }
 
 // Tiny drifting warm dust motes that hang around an island and catch the key
@@ -1706,13 +2722,8 @@ function buildFlame(island, group) {
   halo.scale.setScalar(7);
   g.add(halo);
 
-  // Faint heat glow light (off until lit).
-  const light = new THREE.PointLight(0xffb257, 0, 40, 2.0);
-  light.position.y = 2.4;
-  g.add(light);
-
   group.add(g);
-  const flame = { group: g, body, core, halo, light, bodyMat, coreMat, lit: 0, target: 0, pulse: 0, phase: Math.random() * Math.PI * 2 };
+  const flame = { group: g, body, core, halo, bodyMat, coreMat, lit: 0, target: 0, pulse: 0, phase: Math.random() * Math.PI * 2 };
   island.flame = flame;
   V.flames.push(flame);
 }
@@ -1732,7 +2743,6 @@ function updateFlames(dt) {
         f.bodyMat.opacity = 0;
         f.coreMat.opacity = 0;
         f.halo.material.opacity = 0;
-        f.light.intensity = 0;
       }
       continue;
     }
@@ -1746,7 +2756,6 @@ function updateFlames(dt) {
     f.body.scale.set(1, flick * (0.9 + 0.25 * level), 1);
     f.core.scale.set(1, flick2 * (0.9 + 0.2 * level), 1);
     f.halo.scale.setScalar(7 * (0.9 + 0.2 * level) + Math.sin(t * 5.0 + f.phase) * 0.4);
-    f.light.intensity = 3.2 * level * flick;
   }
 }
 
@@ -1767,12 +2776,12 @@ function buildColossus() {
   group.rotation.y = Math.atan2(-cx, -cz);
   V.scene.add(group);
 
-  const stone = new THREE.MeshStandardMaterial({
+  const stone = pbrMaterial({
     color: 0x232830,
     roughness: 1.0,
     metalness: 0.0,
     flatShading: true,
-  });
+  }, "stone");
 
   // Massive half-sunken head, tilted, breaking the surface.
   const headGeo = new THREE.IcosahedronGeometry(15, 1);
@@ -1821,7 +2830,7 @@ function buildColossus() {
   }
 
   // The bronze fire bowl with an ember glow that feeds bloom.
-  const bowlMat = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.85, metalness: 0.2, flatShading: true });
+  const bowlMat = pbrMaterial({ color: 0x2a2018, roughness: 0.85, metalness: 0.2, flatShading: true }, "metal");
   const bowl = new THREE.Mesh(new THREE.CylinderGeometry(6, 3.2, 4.4, 12), bowlMat);
   bowl.position.set(11, 45, 11);
   group.add(bowl);
@@ -1935,7 +2944,7 @@ function buildBeacon(height) {
 function glowMarker(color, size, intensity) {
   const m = new THREE.Mesh(
     new THREE.SphereGeometry(size, 8, 8),
-    new THREE.MeshStandardMaterial({
+    pbrMaterial({
       color: 0x201408,
       emissive: new THREE.Color(color),
       // Daytime dims the emissive markers so braziers/lamps read as gentle warm
@@ -1944,16 +2953,14 @@ function glowMarker(color, size, intensity) {
     })
   );
   m.material.toneMapped = false;
+  m.userData.shadowExcludeSubtree = true;
   return m;
 }
 
-function addPointGlow(group, x, y, z, color, intensity, dist) {
-  // Warm accent lights are scaled down by day so they light their prop softly
-  // instead of casting a night-lamp pool over the terrain (point 5).
-  const l = new THREE.PointLight(color, intensity * DAY_ACCENT, dist || 26, 2.0);
-  l.position.set(x, y, z);
-  group.add(l);
-  return l;
+function addPointGlow() {
+  // R4 removes standing decorative point lights entirely. Existing call sites
+  // remain as semantic markers for a later night mode, but add zero GPU lights.
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1966,6 +2973,9 @@ function addPointGlow(group, x, y, z, color, intensity, dist) {
 // or null. Ray starts well above any island peak so it never begins inside a prop.
 function surfaceYAt(wx, wz, targets) {
   if (!targets || !targets.length) return null;
+  if (V && V.terrainField && V.terrain && targets.includes(V.terrain)) {
+    return V.terrainField.sampleHeight(wx, wz);
+  }
   _groundFrom.set(wx, 800, wz);
   _groundRay.set(_groundFrom, _groundDir);
   _groundRay.far = 1600;
@@ -1977,6 +2987,9 @@ function surfaceYAt(wx, wz, targets) {
 // callers can avoid seating small props on steep slopes. Terrain-only whitelist.
 function sampleSurface(wx, wz, targets) {
   if (!targets || !targets.length) return null;
+  if (V && V.terrainField && V.terrain && targets.includes(V.terrain)) {
+    return V.terrainField.sampleSurface(wx, wz);
+  }
   _groundFrom.set(wx, 800, wz);
   _groundRay.set(_groundFrom, _groundDir);
   _groundRay.far = 1600;
@@ -2012,51 +3025,6 @@ function groundY(island, lx, lz, fallbackY) {
   return s.y;
 }
 
-// Lowest solid contact under a wide, flat-bottomed prop (lighthouse, temple,
-// home): sample the center plus a perimeter ring and keep the LOWEST valid hit so
-// the base tucks in and no corner floats over a lower part of the dome. The higher
-// centre bump ends up hidden inside the base. Out-of-band hits are ignored.
-function footprintY(island, lx, lz, footR, fallbackY) {
-  const c = island.center;
-  const fb = fallbackY == null ? island.topY : fallbackY;
-  let lo = Infinity;
-  const consider = (s) => { if (s && inBand(island, s.y) && s.y < lo) lo = s.y; };
-  consider(sampleSurface(c.x + lx, c.z + lz, island.groundTargets));
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
-    consider(sampleSurface(c.x + lx + Math.cos(a) * footR, c.z + lz + Math.sin(a) * footR, island.groundTargets));
-  }
-  if (lo === Infinity) {
-    console.warn("[voyage] footprint seat fell back to nominal top", island.id);
-    return fb;
-  }
-  return lo;
-}
-
-// Find a seating spot for a small prop near LOCAL (lx, lz): if the surface there is
-// steeper than ~25 degrees, sample a ring of nearby offsets and pick the flattest
-// so the prop never sinks sideways into a slope. Returns { lx, lz, y }.
-function groundSpot(island, lx, lz, searchR) {
-  const c = island.center;
-  const FLAT = 0.906; // cos(25deg)
-  const base = sampleSurface(c.x + lx, c.z + lz, island.groundTargets);
-  if (base && inBand(island, base.y) && base.ny >= FLAT) return { lx, lz, y: base.y };
-  let best = base && inBand(island, base.y) ? { lx, lz, y: base.y, ny: base.ny } : null;
-  const R = searchR || 2.2;
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * Math.PI * 2;
-    const ox = Math.cos(a) * R;
-    const oz = Math.sin(a) * R;
-    const s = sampleSurface(c.x + lx + ox, c.z + lz + oz, island.groundTargets);
-    if (s && inBand(island, s.y) && (!best || s.ny > best.ny)) best = { lx: lx + ox, lz: lz + oz, y: s.y, ny: s.ny };
-  }
-  if (!best) {
-    console.warn("[voyage] small-prop spot fell back to nominal top", island.id);
-    return { lx, lz, y: island.topY };
-  }
-  return { lx: best.lx, lz: best.lz, y: best.y };
-}
-
 // ---------------------------------------------------------------------------
 // ICON QUAD (TASK B1, B2). A small square plaque/banner textured with a real
 // project or employer icon. Loaded through the shared TextureLoader/manager and
@@ -2069,11 +3037,10 @@ function buildIconQuad(iconPath, size, base, boost) {
   const geo = new THREE.PlaneGeometry(size, size);
   // Fully matte so bright daylight never throws a specular hotspot on the cloth;
   // the icon reads from its own emissive, like the stele plaques (addendum 1).
-  const mat = new THREE.MeshStandardMaterial({
+  const mat = pbrMaterial({
     color: 0x6b5236,
     roughness: 1.0,
     metalness: 0.0,
-    envMapIntensity: 0,
     emissive: new THREE.Color(0xffb877),
     emissiveIntensity: base,
     side: THREE.DoubleSide,
@@ -2159,11 +3126,9 @@ function makeBeatOutward(island, anchorWorld, dist, height, side, lookUp) {
   let oz = anchorWorld.z - island.center.z;
   let l = Math.hypot(ox, oz);
   if (l < 0.5) {
-    // Anchor sits on the island center (a tower or peak): there is no outward
-    // radial, so approach from the sea side (toward the play center) instead of
-    // collapsing the camera onto the anchor.
-    ox = -island.center.x;
-    oz = -island.center.z;
+    // A landmark at the region center inherits that coast's open-water bearing.
+    ox = island.outward.x;
+    oz = island.outward.y;
     l = Math.hypot(ox, oz) || 1;
   }
   const nx = ox / l;
@@ -2178,6 +3143,28 @@ function makeBeatOutward(island, anchorWorld, dist, height, side, lookUp) {
   );
   const look = new THREE.Vector3(anchorWorld.x, anchorWorld.y + (lookUp || 0), anchorWorld.z);
   return { pos, look, anchor: anchorWorld.clone() };
+}
+
+// Origins sits in a crescent bay, so deriving a camera radial from each prop can
+// put the lens inland and leave open water behind the cottage. Keep the camera
+// on the authored seaward bearing and look inland across the exhibit instead.
+function makeBeatInland(island, anchorWorld, dist, height, side, lookUp) {
+  const nx = island.outward.x;
+  const nz = island.outward.y;
+  const tx = -nz;
+  const tz = nx;
+  const s = side || 1;
+  const pos = new THREE.Vector3(
+    anchorWorld.x + nx * dist + tx * dist * 0.34 * s,
+    height,
+    anchorWorld.z + nz * dist + tz * dist * 0.34 * s,
+  );
+  const look = new THREE.Vector3(
+    anchorWorld.x - nx * 1.4,
+    anchorWorld.y + (lookUp || 0),
+    anchorWorld.z - nz * 1.4,
+  );
+  return { pos, look, anchor: anchorWorld.clone(), framing: "sea-to-inland" };
 }
 
 // Frame an upright marker (a Labors stele) so its LIT, moon-facing side turns
@@ -2267,108 +3254,170 @@ function finalizeBeats(island) {
   }
 }
 
-// ---- Origins: lighthouse, cypress trees, a lit home, a credentials tablet ---
+// ---- Origins: weathered cottage, hero grove, garden ruin, and tablet ----------
 function buildOrigins(group, topY, models, shared, island) {
-  // Lighthouse seated on the true surface at the island crown. Sampled across its
-  // wide footprint (lowest contact) so the plinth tucks in and no corner floats.
-  const lhBase = footprintY(island, 0, 0, 2.0, topY) - 0.2;
-  if (models.lighthouse) {
-    const lh = prepModel(models.lighthouse, 15, "height");
-    lh.position.y = lhBase;
-    group.add(lh);
+  const grounding = R6_LANDMARK_GROUNDING.origins;
+  const ruinSpec = grounding.ruins;
+  const ruinContact = landmarkFootprint(island, ruinSpec);
+  const ruinX = ruinSpec.lx;
+  const ruinZ = ruinSpec.lz;
+  const ruinBase = ruinContact.y;
+  if (models["ruins-columns"]) {
+    const ruins = buildMergedGlbFoundation(
+      models["ruins-columns"], 5.2, "height", V.landmarkMaterials.weathered,
+      "ruins", ruinSpec.width, ruinSpec.depth, 0.22, ruinContact,
+    );
+    ruins.position.set(ruinX, 0, ruinZ);
+    ruins.rotation.y = ruinSpec.rotation;
+    group.add(ruins);
   } else {
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.0, 12, 10), shared.matSand);
-    tower.position.y = lhBase + 6;
-    group.add(tower);
-  }
-  // Lantern glow near the lighthouse lamp room. Brightened so Origins reads as a
-  // lit landform from spawn (V1); this is also the beat 2 highlight exhibit.
-  const lamp = glowMarker(COL.amber, 0.8, 4.0);
-  lamp.position.set(0, lhBase + 13, 0);
-  group.add(lamp);
-  addPointGlow(group, 0, lhBase + 13, 0, 0xffb066, 14, 62);
-  island.beaconTopGlow = lamp;
-
-  // A small warm door glow low on the seaward face so the tower reads as a home.
-  const lhDoor = glowMarker(0xffb060, 0.32, 1.6);
-  const doorOut = Math.atan2(-island.center.x, -island.center.z); // toward the sea
-  lhDoor.position.set(Math.sin(doorOut) * 1.7, lhBase + 1.7, Math.cos(doorOut) * 1.7);
-  group.add(lhDoor);
-
-  // Precompute the home and tablet placements BEFORE the trees so cypresses can be
-  // planted clear of them (no tree growing through the house or the tablet).
-  const hx = island.radius * 0.46;
-  const hz = island.radius * 0.3;
-  const homeGY = footprintY(island, hx, hz, 1.7, topY);
-  const tspot = groundSpot(island, island.radius * 0.3, -island.radius * 0.34, 2.0);
-  const tabX = tspot.lx;
-  const tabZ = tspot.lz;
-  const tabGY = tspot.y;
-
-  // Cypress trees around the crown, grounded on the true surface (base contact
-  // minus a small sink) and nudged around the ring so none intersects the home,
-  // the tablet, or the lighthouse at the centre (TASK A + prop-prop clearance).
-  const treeSrc = models["tree-cypress"];
-  const n = 6;
-  for (let i = 0; i < n; i++) {
-    let a = (i / n) * Math.PI * 2 + 0.6;
-    const r = island.radius * (0.5 + Math.random() * 0.28);
-    let tx = Math.cos(a) * r;
-    let tz = Math.sin(a) * r;
-    for (let k = 0; k < 8; k++) {
-      const clearHome = Math.hypot(tx - hx, tz - hz) > 4.8;
-      const clearTablet = Math.hypot(tx - tabX, tz - tabZ) > 3.8;
-      if (clearHome && clearTablet) break;
-      a += 0.35; // rotate around the ring and retry until clear
-      tx = Math.cos(a) * r;
-      tz = Math.sin(a) * r;
-    }
-    let tree;
-    if (treeSrc) {
-      tree = prepModel(treeSrc, 4 + Math.random() * 2, "height");
-    } else {
-      tree = buildProceduralCypress(shared);
-    }
-    tree.position.set(tx, groundY(island, tx, tz, topY) - 0.2, tz);
-    tree.rotation.y = Math.random() * Math.PI;
-    group.add(tree);
+    const fallback = new THREE.Group();
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(4.6, 3.4, 0.65), V.landmarkMaterials.weathered);
+    wall.position.y = 1.8;
+    const returnWall = new THREE.Mesh(new THREE.BoxGeometry(0.65, 2.3, 2.8), V.landmarkMaterials.weathered);
+    returnWall.position.set(-2.0, 1.25, 1.1);
+    fallback.add(wall, returnWall);
+    const ruins = registerR6Draw(mergeScenePrimitives(fallback, V.landmarkMaterials.weathered, "ruins-merged-fallback"), "ruins");
+    ruins.position.set(ruinX, ruinBase, ruinZ);
+    ruins.rotation.y = ruinSpec.rotation;
+    group.add(ruins);
   }
 
-  // A small stone home near the shore whose warm doorway is the hearth (beat 1).
-  const homeStone = new THREE.MeshStandardMaterial({ color: 0x746b5c, roughness: 1.0, metalness: 0, flatShading: true });
+  // The cottage is deliberately modest: merged limestone massing plus one
+  // weathered-wood roof/beam/door draw and a footprint-sized buried skirt.
+  const homeSpec = grounding.cottage;
+  const homeContact = landmarkFootprint(island, homeSpec);
+  const hx = homeSpec.lx;
+  const hz = homeSpec.lz;
+  // The wall begins at local y=.21. Put it just above the highest sample and
+  // extend the textured skirt below every lower corner of the graded pad.
   const home = new THREE.Group();
-  const hbody = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.6, 3.0), homeStone);
-  hbody.position.y = 1.3;
-  home.add(hbody);
-  const hroof = new THREE.Mesh(new THREE.ConeGeometry(2.8, 1.7, 4), homeStone);
-  hroof.rotation.y = Math.PI / 4;
-  hroof.position.y = 3.45;
-  home.add(hroof);
-  const hearthMat = new THREE.MeshStandardMaterial({ color: 0x1a0f06, emissive: new THREE.Color(0xffb060), emissiveIntensity: 0.55 });
-  hearthMat.toneMapped = false;
-  const hearth = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.7), hearthMat);
-  hearth.position.set(0, 0.95, 1.51);
-  home.add(hearth);
-  home.position.set(hx, homeGY - 0.1, hz);
-  home.rotation.y = Math.atan2(hx, hz); // doorway faces outward toward the sea
+  const stoneParts = new THREE.Group();
+  const skirtH = homeContact.span + 0.12;
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(5.3, skirtH, 4.5), V.landmarkMaterials.weathered);
+  skirt.position.y = 0.23 - skirtH * 0.5;
+  // Four wall runs leave a real doorway opening instead of drawing an emissive
+  // rectangle on top of a solid wall.
+  // A real rear window replaces the single 4.8x2.9 beige slab that read as an
+  // untextured backdrop from the Origins approach.
+  const rearLeft = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.9, 0.35), V.landmarkMaterials.weathered);
+  rearLeft.position.set(-1.55, 1.66, -1.775);
+  const rearRight = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.9, 0.35), V.landmarkMaterials.weathered);
+  rearRight.position.set(1.55, 1.66, -1.775);
+  const rearHeader = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.72, 0.35), V.landmarkMaterials.weathered);
+  rearHeader.position.set(0, 2.75, -1.775);
+  const rearSill = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.62, 0.35), V.landmarkMaterials.weathered);
+  rearSill.position.set(0, 0.52, -1.775);
+  stoneParts.add(rearLeft, rearRight, rearHeader, rearSill);
+  for (const side of [-1, 1]) {
+    const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.9, 3.2), V.landmarkMaterials.weathered);
+    sideWall.position.set(side * 2.225, 1.66, 0);
+    stoneParts.add(sideWall);
+  }
+  const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(2.205, 2.9, 0.35), V.landmarkMaterials.weathered);
+  frontLeft.position.set(-1.1025, 1.66, 1.775);
+  const frontRight = new THREE.Mesh(new THREE.BoxGeometry(1.155, 2.9, 0.35), V.landmarkMaterials.weathered);
+  frontRight.position.set(1.8225, 1.66, 1.775);
+  const frontHeader = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.05, 0.35), V.landmarkMaterials.weathered);
+  frontHeader.position.set(0.72, 2.585, 1.775);
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.2, 0.68), V.landmarkMaterials.weathered);
+  chimney.position.set(-1.45, 3.55, -0.65);
+  const buttress = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 1.05), V.landmarkMaterials.weathered);
+  buttress.position.set(2.45, 1.0, -0.9);
+  stoneParts.add(skirt, frontLeft, frontRight, frontHeader, chimney, buttress);
+  const cottageStone = registerR6Draw(
+    mergeScenePrimitives(stoneParts, V.landmarkMaterials.weathered, "origins-cottage-merged-stone"),
+    "originsCottage",
+  );
+  home.add(cottageStone);
+
+  const agedWood = pbrMaterial({ color: 0x655846, roughness: 0.96, metalness: 0 }, "wood");
+  const timberParts = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(5.35, 0.22, 2.55), agedWood);
+    roof.position.set(0, 3.35, side * 0.92);
+    roof.rotation.x = side * 0.48;
+    timberParts.add(roof);
+  }
+  for (const x of [-1.9, 0, 1.9]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.17, 2.55, 0.18), agedWood);
+    beam.position.set(x, 1.66, 2.0);
+    timberParts.add(beam);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(4.65, 0.18, 0.2), agedWood);
+  lintel.position.set(0, 2.8, 2.0);
+  timberParts.add(lintel);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.92, 1.72, 0.12), agedWood);
+  door.position.set(0.72, 1.08, 1.70);
+  timberParts.add(door);
+  for (const side of [-1, 1]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.9, 0.10), agedWood);
+    jamb.position.set(0.72 + side * 0.57, 1.16, 1.99);
+    timberParts.add(jamb);
+  }
+  const doorLintel = new THREE.Mesh(new THREE.BoxGeometry(1.23, 0.10, 0.10), agedWood);
+  doorLintel.position.set(0.72, 2.105, 1.99);
+  timberParts.add(doorLintel);
+  const cottageTimber = registerR6Draw(
+    mergeScenePrimitives(timberParts, agedWood, "origins-cottage-merged-timber"),
+    "originsCottage",
+  );
+  home.add(cottageTimber);
+
+  const windowMat = pbrMaterial({
+    color: 0x3b2414,
+    emissive: new THREE.Color(0xffa24e),
+    emissiveIntensity: 0.72,
+    roughness: 0.84,
+  });
+  windowMat.toneMapped = false;
+  const doorWindow = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.30), windowMat);
+  doorWindow.position.set(0.72, 1.55, 1.765);
+  home.add(doorWindow);
+  home.rotation.y = homeSpec.rotation;
+  normalizeR6LandmarkHeight(home, R6_LANDMARK_CONFIG.silhouettes.cottageTargetHeight, homeContact.y);
+  home.position.x = hx;
+  home.position.z = hz;
   group.add(home);
-  addPointGlow(group, hx + Math.sin(home.rotation.y) * 1.6, homeGY + 1.5, hz + Math.cos(home.rotation.y) * 1.6, 0xffb877, 4.5, 22);
+  assertR6LandmarkHeight(home, "originsCottage", homeContact.y);
+  addPointGlow(group, hx + Math.sin(home.rotation.y) * 2.2, home.position.y + 1.5, hz + Math.cos(home.rotation.y) * 2.2, 0xffad62, 4.2, 20);
+
+  // Domestic props share the harbor/forge palette instead of keeping saturated
+  // GLB colors. They stay outside the architectural census because each is a
+  // small authored tour prop rather than part of the merged cottage shell.
+  if (models.amphora) {
+    for (let i = 0; i < grounding.amphorae.length; i++) {
+      const spec = grounding.amphorae[i];
+      const contact = landmarkFootprint(island, spec);
+      const h = i === 0 ? 1.45 : 1.15;
+      const amphora = prepModel(models.amphora, h, "height", "ceramic");
+      amphora.position.set(spec.lx, contact.y, spec.lz);
+      amphora.rotation.y = 0.55 + i * 1.1;
+      group.add(amphora);
+    }
+  }
+
+  const tabletSpec = grounding.tablet;
+  const tabletContact = landmarkFootprint(island, tabletSpec);
+  const tabX = tabletSpec.lx;
+  const tabZ = tabletSpec.lz;
+  const tabGY = tabletContact.y;
 
   // A stone credentials tablet on a marble pedestal beside the lighthouse, with
   // thin darker inset carved lines and a warm uplight (beat 3, NEW exhibit).
-  const marbleMat = new THREE.MeshStandardMaterial({ color: COL.marble, roughness: 0.92, metalness: 0, flatShading: true });
+  const marbleMat = pbrMaterial({ color: COL.marble, roughness: 0.92, metalness: 0, flatShading: true }, "stone");
   const tablet = new THREE.Group();
-  tablet.position.set(tabX, tabGY - 0.04, tabZ);
+  tablet.position.set(tabX, tabGY, tabZ);
   const tabOut = Math.atan2(tabX, tabZ); // carved face turns outward toward the lens
   tablet.rotation.y = tabOut;
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.02, 1.4, 8), marbleMat);
   ped.position.y = 0.7; // base rests at ground contact
   tablet.add(ped);
-  const slabMat = new THREE.MeshStandardMaterial({ color: COL.marble, roughness: 0.9, metalness: 0, flatShading: true, emissive: new THREE.Color(0x6b5a3a), emissiveIntensity: 0.12 });
+  const slabMat = pbrMaterial({ color: 0xbdb39f, roughness: 0.94, metalness: 0, flatShading: false }, "stone");
   const slab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.0, 0.42), slabMat);
   slab.position.y = 2.9; // rests on the pedestal top (~1.4), rising to ~4.4
   tablet.add(slab);
-  const carveMat = new THREE.MeshStandardMaterial({ color: 0x8f8878, roughness: 1.0, metalness: 0 });
+  const carveMat = pbrMaterial({ color: 0x8f8878, roughness: 1.0, metalness: 0 }, "stone");
   for (let i = 0; i < 4; i++) {
     const line = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.12), carveMat);
     line.position.set(0, 3.8 - i * 0.52, 0.22);
@@ -2377,43 +3426,30 @@ function buildOrigins(group, topY, models, shared, island) {
   group.add(tablet);
   addPointGlow(group, tabX + Math.sin(tabOut) * 1.9, tabGY + 1.4, tabZ + Math.cos(tabOut) * 1.9, 0xffc890, 3.4, 15);
 
-  // Beat tour poses (B2): the home hearth, the lighthouse door and lamp, the
+  // Beat tour poses: cottage hearth, garden ruin, and credentials tablet.
   // credentials tablet. Each anchor is the exhibit itself so the leader-line dot
   // lands on it, and each frames the object close, not a generic island orbit.
-  const homeAnchor = anchorAt(island, hx, homeGY + 1.0, hz);
-  const towerAnchor = anchorAt(island, 0, lhBase + 7, 0);
+  const homeAnchor = anchorAt(island, hx, homeContact.y + 1.0, hz);
+  const towerAnchor = anchorAt(island, ruinX, ruinBase + 3.5, ruinZ);
   const tabletAnchor = anchorAt(island, tabX, tabGY + 2.9, tabZ);
-  const b1 = makeBeatOutward(island, homeAnchor, 9.5, homeGY + 4.2, 1, 0.4);
-  const b2 = makeBeatOutward(island, towerAnchor, 17, lhBase + 8.5, -1, 4.5);
-  const b3 = makeBeatOutward(island, tabletAnchor, 6.6, tabGY + 4.2, 1, 0.2);
-  b1.emissives = [{ mat: hearthMat, base: 0.55, boost: 1.1 }];
-  b2.emissives = [glowEmissive(lamp, 1.7)];
-  b3.emissives = [{ mat: slabMat, base: 0.12, boost: 0.5 }];
+  const b1 = makeBeatInland(island, homeAnchor, 10.5, homeContact.y + 5.4, 1, 0.4);
+  const b2 = makeBeatInland(island, towerAnchor, 12.0, ruinBase + 7.4, -1, 1.5);
+  const b3 = makeBeatInland(island, tabletAnchor, 8.0, tabGY + 5.0, 1, 0.2);
+  b1.emissives = [{ mat: windowMat, base: 0.72, boost: 0.96 }];
+  b2.emissives = [];
+  b3.emissives = [];
   island.beats = [b1, b2, b3];
-}
-
-function buildProceduralCypress(shared) {
-  const g = new THREE.Group();
-  for (let i = 0; i < 3; i++) {
-    const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(1.1 - i * 0.28, 2.0, 7),
-      shared.matFoliage
-    );
-    cone.position.y = 1.2 + i * 1.3;
-    g.add(cone);
-  }
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.2, 6), shared.matSand);
-  trunk.position.y = 0.6;
-  g.add(trunk);
-  g.scale.setScalar(1.2);
-  return g;
+  island.heroTrees = originsHeroTrees(island);
+  registerLandmarkDebris(island, 6.8, 16, 0.4);
 }
 
 // ---- The Forge: amphora, anvil, brazier, rising embers ---------------------
 function buildForge(group, topY, models, shared, island) {
-  // Procedural anvil, seated on the true surface and sunk so its foot bites in.
-  const anvilMat = new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.7, metalness: 0.2, flatShading: true });
-  const anvil = new THREE.Group();
+  const grounding = R6_LANDMARK_GROUNDING.forge;
+  // One merged ironwork draw with a shallow buried plinth replaces the old four
+  // independent primitive draws and gives the forge a single grounded mass.
+  const anvilMat = pbrMaterial({ color: 0x24262b, roughness: 0.7, metalness: 0.2, flatShading: true }, "metal");
+  const anvilParts = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 1.0), anvilMat);
   body.position.y = 1.4;
   const horn = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.2, 6), anvilMat);
@@ -2423,31 +3459,38 @@ function buildForge(group, topY, models, shared, island) {
   wst.position.y = 0.8;
   const foot = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.2), anvilMat);
   foot.position.y = 0.35;
-  anvil.add(body, horn, wst, foot);
+  const buriedPlinth = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.22, 1.7), anvilMat);
+  buriedPlinth.position.y = 0.11;
+  anvilParts.add(body, horn, wst, foot, buriedPlinth);
+  const anvil = registerR6Draw(mergeScenePrimitives(anvilParts, anvilMat, "forge-merged-anvil"), "forge");
   // Slope-aware seat; the foot bites in ~0.05 (foot base sits at local y = 0.15).
-  const anvilSpot = groundSpot(island, -2.2, 1.0, 2.0);
-  anvil.position.set(anvilSpot.lx, anvilSpot.y - 0.2, anvilSpot.lz);
+  const anvilSpec = grounding.anvil;
+  const anvilContact = landmarkFootprint(island, anvilSpec);
+  const anvilSpot = { lx: anvilSpec.lx, lz: anvilSpec.lz, y: anvilContact.y };
+  anvil.position.set(anvilSpot.lx, anvilSpot.y, anvilSpot.lz);
   group.add(anvil);
 
   // Procedural brazier (a bowl on legs) with an amber ember glow. Brightened so
   // the Forge reads from spawn (V1); grounded on the true surface.
-  const brazier = buildBrazier(shared);
-  const brazSpot = groundSpot(island, 1.6, -0.6, 2.0);
-  brazier.position.set(brazSpot.lx, brazSpot.y - 0.05, brazSpot.lz);
+  const brazier = buildBrazier(shared, "forge");
+  const brazSpec = grounding.brazier;
+  const brazContact = landmarkFootprint(island, brazSpec);
+  const brazSpot = { lx: brazSpec.lx, lz: brazSpec.lz, y: brazContact.y };
+  brazier.position.set(brazSpot.lx, brazSpot.y, brazSpot.lz);
   group.add(brazier);
   addPointGlow(group, brazSpot.lx, brazSpot.y + 2.3, brazSpot.lz, 0xff9a3c, 13, 44);
 
   // Amphorae as accents. Small props: rest essentially on the surface (tiny sink)
   // and relocate off any steep slope so none tilt into or sink under the ground.
-  const amphAngles = [1.0, 3.1, 5.2];
   const amphSpots = [];
   if (models.amphora) {
     for (let i = 0; i < 3; i++) {
-      const amp = prepModel(models.amphora, 1.8 + Math.random() * 0.6, "height");
-      const a = amphAngles[i];
-      const spot = groundSpot(island, Math.cos(a) * 4.5, Math.sin(a) * 4.5, 2.0);
-      amp.position.set(spot.lx, spot.y - 0.04, spot.lz);
-      amp.rotation.y = Math.random() * Math.PI;
+      const amp = prepModel(models.amphora, 1.8 + i * 0.24, "height", "ceramic");
+      const spec = grounding.amphorae[i];
+      const contact = landmarkFootprint(island, spec);
+      const spot = { lx: spec.lx, lz: spec.lz, y: contact.y };
+      amp.position.set(spot.lx, spot.y, spot.lz);
+      amp.rotation.y = 0.7 + i * 1.37;
       group.add(amp);
       amphSpots.push(spot);
     }
@@ -2459,7 +3502,11 @@ function buildForge(group, topY, models, shared, island) {
 
   // Beat tour poses (B2): the anvil, the brazier, the amphora cluster, each
   // framed close so the exhibit reads as a distinct object, not island rock.
-  const amphMid = amphSpots.length ? amphSpots[1] : groundSpot(island, Math.cos(3.1) * 4.5, Math.sin(3.1) * 4.5, 2.0);
+  const amphMid = amphSpots.length ? amphSpots[1] : {
+    lx: grounding.amphorae[1].lx,
+    lz: grounding.amphorae[1].lz,
+    y: landmarkFootprint(island, grounding.amphorae[1]).y,
+  };
   const anvilA = anchorAt(island, anvilSpot.lx, anvilSpot.y + 1.5, anvilSpot.lz);
   const brazA = anchorAt(island, brazSpot.lx, brazSpot.y + 2.15, brazSpot.lz);
   const amphA = anchorAt(island, amphMid.lx, amphMid.y + 1.0, amphMid.lz);
@@ -2469,22 +3516,27 @@ function buildForge(group, topY, models, shared, island) {
   const coal = brazier.userData.coal;
   if (coal) f2.emissives = [glowEmissive(coal, 1.7)];
   island.beats = [f1, f2, f3];
+  registerLandmarkDebris(island, 4.8, 14, 1.2);
 }
 
-function buildBrazier(shared) {
+function buildBrazier(shared, landmarkKey = null) {
   const g = new THREE.Group();
-  const metal = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.8, metalness: 0.15, flatShading: true });
+  const metal = pbrMaterial({ color: 0x2a2622, roughness: 0.8, metalness: 0.15, flatShading: true }, "metal");
+  const metalParts = new THREE.Group();
   const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.5, 0.7, 8), metal);
   bowl.position.y = 2.0;
-  g.add(bowl);
+  metalParts.add(bowl);
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2;
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.0, 5), metal);
     leg.position.set(Math.cos(a) * 0.5, 1.0, Math.sin(a) * 0.5);
     leg.rotation.z = Math.cos(a) * 0.14;
     leg.rotation.x = -Math.sin(a) * 0.14;
-    g.add(leg);
+    metalParts.add(leg);
   }
+  const mergedMetal = mergeScenePrimitives(metalParts, metal, `${landmarkKey || "oracle"}-merged-brazier`);
+  if (landmarkKey) registerR6Draw(mergedMetal, landmarkKey);
+  g.add(mergedMetal);
   const coal = glowMarker(0xff7a1e, 0.6, 3.4);
   coal.position.y = 2.15;
   coal.scale.set(1.2, 0.6, 1.2);
@@ -2640,20 +3692,40 @@ function updateEmbers(dt) {
 
 // ---- The Labors: the temple plus a colonnade of stele markers --------------
 function buildLabors(group, topY, models, shared, island) {
-  const templeGY = footprintY(island, 0, 0, 4.0, topY);
+  const templeSpec = R6_LANDMARK_GROUNDING.labors.temple;
+  const templeContact = landmarkFootprint(island, templeSpec);
+  const templeGY = templeContact.max + 0.04;
+  // The acropolis terrace is merged into the imported temple draw. Its pale R6
+  // material has the strongest environment/sun response in the landmark family.
+  const templeBaseY = templeGY;
+  let temple = null;
   if (models.temple) {
-    const temple = prepModel(models.temple, 22, "xz");
-    temple.position.y = templeGY - 0.3;
-    group.add(temple);
+    temple = buildMergedGlbFoundation(
+      models.temple, R6_LANDMARK_CONFIG.silhouettes.templeTargetHeight, "height", V.landmarkMaterials.hero,
+      "temple", templeSpec.width, templeSpec.depth, 0.28, templeContact,
+    );
   } else {
-    group.add(buildProceduralTemple(shared, templeGY));
+    const fallback = buildProceduralTemple(shared, templeGY);
+    const terrace = new THREE.Mesh(
+      terrainFoundationGeometry(templeSpec.width, templeSpec.depth, templeGY, templeContact.samples, templeSpec.sink),
+      V.landmarkMaterials.hero,
+    );
+    fallback.add(terrace);
+    temple = registerR6Draw(
+      mergeScenePrimitives(fallback, V.landmarkMaterials.hero, "temple-merged-fallback"),
+      "temple",
+    );
   }
+  temple.position.set(templeSpec.lx, models.temple ? 0 : 0, templeSpec.lz);
+  temple.rotation.y = templeSpec.rotation;
+  group.add(temple);
+  assertR6LandmarkHeight(temple, "temple", templeContact.min - templeSpec.sink);
 
   // Warm glow inside the temple, brightened so the Labors reads from spawn (V1).
   const glow = glowMarker(0xffbf7a, 0.65, 2.8);
-  glow.position.set(0, templeGY + 2.5, 0);
+  glow.position.set(0, templeBaseY + 2.8, 0);
   group.add(glow);
-  addPointGlow(group, 0, templeGY + 3, 0, 0xffb877, 12, 50);
+  addPointGlow(group, 0, templeBaseY + 3, 0, 0xffb877, 12, 50);
 
   // The colonnade: one marble stele per project (Speakl first), arcing around
   // the plateau, largest first, tapering with index. Cheap: two InstancedMeshes
@@ -2661,14 +3733,11 @@ function buildLabors(group, topY, models, shared, island) {
   // amber sigils, so ten markers add three draw calls and zero new lights (B2).
   const n = Math.max(1, COPY.projectCount);
   const R = island.radius;
-  const r0 = R * 0.62;
+  const r0 = Math.min(R * 0.62, 9.5);
 
   // Center the arc so the colonnade opens toward the sea approach.
-  const midA = Math.atan2(-island.center.z, -island.center.x);
-  const span = 2.5; // radians to each side (a broad arc around the plateau)
-
-  const marble = new THREE.MeshStandardMaterial({ color: COL.marble, roughness: 0.92, metalness: 0, flatShading: true });
-  const marbleDim = new THREE.MeshStandardMaterial({ color: 0xb9b2a4, roughness: 0.95, metalness: 0, flatShading: true });
+  const marble = pbrMaterial({ color: COL.marble, roughness: 0.92, metalness: 0, flatShading: true }, "stone");
+  const marbleDim = pbrMaterial({ color: 0xb9b2a4, roughness: 0.95, metalness: 0, flatShading: true }, "stone");
   const plinthGeo = new THREE.BoxGeometry(1.9, 1.4, 1.5);
   const slabGeo = new THREE.CylinderGeometry(0.52, 0.72, 3.4, 4);
 
@@ -2688,10 +3757,10 @@ function buildLabors(group, topY, models, shared, island) {
   const icons = COPY.projectIcons || [];
 
   for (let i = 0; i < n; i++) {
-    const t = n > 1 ? i / (n - 1) : 0.5;
-    const a = midA - span + t * (span * 2);
-    const lx = Math.cos(a) * r0;
-    const lz = Math.sin(a) * r0;
+    const steleSpec = laborsSteleGrounding(i, n, r0, island.outward.x, island.outward.y);
+    const steleContact = landmarkFootprint(island, steleSpec);
+    const lx = steleSpec.lx;
+    const lz = steleSpec.lz;
     const s = 1.0 - i * 0.04; // largest first, tapering with index
     const jitter = (Math.random() - 0.5) * 0.18;
     // Outward radial in local space so a flat stele face turns toward the sea.
@@ -2701,7 +3770,7 @@ function buildLabors(group, topY, models, shared, island) {
 
     // Each stele is seated on the TRUE surface sampled straight down, then sunk
     // slightly, so none float above or sink below the jittered plateau (TASK A).
-    const ground = groundY(island, lx, lz, topY) - 0.12;
+    const ground = steleContact.y;
 
     // Plinth: base seated on the sloped plateau surface.
     const plinthH = 1.4;
@@ -2775,11 +3844,12 @@ function buildLabors(group, topY, models, shared, island) {
   group.add(sigils);
 
   island.beats = beats;
+  registerLandmarkDebris(island, 10.4, 24, 0.85);
 }
 
 function buildProceduralTemple(shared, topY) {
   const g = new THREE.Group();
-  const marble = new THREE.MeshStandardMaterial({ color: COL.marble, roughness: 0.9, metalness: 0, flatShading: true });
+  const marble = pbrMaterial({ color: COL.marble, roughness: 0.9, metalness: 0, flatShading: true }, "stone");
   const stepW = 16,
     stepD = 11;
   const steps = new THREE.Mesh(new THREE.BoxGeometry(stepW, 1.6, stepD), marble);
@@ -2807,15 +3877,19 @@ function buildProceduralTemple(shared, topY) {
 
 // ---- The Voyages: dock, crates, moored boats -------------------------------
 function buildVoyages(group, topY, models, shared, island) {
-  // A pier reaching out over the water toward the play area center.
-  const dirToCenter = new THREE.Vector2(-island.center.x, -island.center.z).normalize();
+  const grounding = R6_LANDMARK_GROUNDING.voyages;
+  // A pier reaches from the harbor terrace toward this region's open-water dock.
+  const dirToCenter = island.outward.clone();
   const pierAngle = Math.atan2(dirToCenter.x, dirToCenter.y);
 
-  // Plank grounding: the inner planks meet the shore surface, the outer planks
-  // ride just above the water where there is nothing to hit (TASK A).
+  // All four imported dock tiles and their support posts collapse into one
+  // weathered-wood pier draw. Inner sections follow the pad; outer sections sit
+  // at the harbor waterline without repeating saturated GLB material colors.
+  const pierWood = pbrMaterial({ color: 0x756b5a, roughness: 0.97, metalness: 0, flatShading: false }, "wood");
+  const pierParts = new THREE.Group();
   if (models.dock) {
     for (let i = 0; i < 4; i++) {
-      const plank = prepModel(models.dock, 5.5, "xz");
+      const plank = mergeGlbLandmark(models.dock, 5.5, "xz", pierWood, `dock-tile-${i + 1}-premerge`);
       const d = island.radius * 0.7 + i * 5.0;
       const px = dirToCenter.x * d;
       const pz = dirToCenter.y * d;
@@ -2823,17 +3897,28 @@ function buildVoyages(group, topY, models, shared, island) {
       const py = surf != null && surf > 0.5 ? surf + 0.05 : 0.35;
       plank.position.set(px, py, pz);
       plank.rotation.y = pierAngle;
-      group.add(plank);
+      pierParts.add(plank);
+      if (i >= 2) {
+        for (const side of [-1, 1]) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 1.5, 7), pierWood);
+          const tx = Math.cos(pierAngle) * side * 1.25;
+          const tz = -Math.sin(pierAngle) * side * 1.25;
+          post.position.set(px + tx, 0.1, pz + tz);
+          pierParts.add(post);
+        }
+      }
     }
   } else {
     const pier = new THREE.Mesh(
       new THREE.BoxGeometry(3, 0.5, 22),
-      new THREE.MeshStandardMaterial({ color: 0x4a3a26, roughness: 0.9, flatShading: true })
+      pierWood,
     );
     pier.position.set(dirToCenter.x * island.radius, 0.4, dirToCenter.y * island.radius);
     pier.rotation.y = pierAngle;
-    group.add(pier);
+    pierParts.add(pier);
   }
+  const mergedPier = registerR6Draw(mergeScenePrimitives(pierParts, pierWood, "voyages-single-merged-pier"), "dockPier");
+  group.add(mergedPier);
 
   // The anchorage: FIVE moored vessels, one for each of the first five experience
   // entries. The sixth entry (Cashonomics) has no vessel and no beat, so the
@@ -2844,7 +3929,7 @@ function buildVoyages(group, topY, models, shared, island) {
   // in per-vessel holder groups so prepModel's recenter is preserved.
   const n = Math.min(5, Math.max(1, COPY.experienceCount));
   const icons = COPY.experienceIcons || [];
-  const poleMat = new THREE.MeshStandardMaterial({ color: 0x3e2a18, roughness: 0.9, flatShading: true });
+  const poleMat = pbrMaterial({ color: 0x3e2a18, roughness: 0.9, flatShading: true }, "wood");
   const beats = [];
 
   // The vessels float in a spread fan just off the shore, facing the open water.
@@ -2873,7 +3958,7 @@ function buildVoyages(group, topY, models, shared, island) {
     let vessel = null;
     if (models[spec.key]) {
       try {
-        vessel = prepModel(models[spec.key], spec.target, "max");
+        vessel = prepModel(models[spec.key], spec.target, "max", "weathered-boat");
       } catch (e) {
         vessel = null;
       }
@@ -2892,12 +3977,16 @@ function buildVoyages(group, topY, models, shared, island) {
     const lz = nz * depth;
 
     const holder = new THREE.Group();
+    // Bobbing vessels receive the island's baked shadow but never enter its
+    // static shadow map, matching the moving player ship strategy.
+    holder.userData.shadowExcludeSubtree = true;
     holder.add(vessel);
     holder.position.set(lx, 0, lz);
     // Broadside to the sea so the deck reads in profile; a small jitter keeps the
     // fan from looking mechanical.
     holder.rotation.y = az + Math.PI / 2 + (Math.random() - 0.5) * 0.22;
     group.add(holder);
+    configureDynamicShadowReceiver(holder);
 
     if (spec.flag) {
       // Flagship marker: a small dim emissive bead atop the mast. By day it needs
@@ -2971,12 +4060,13 @@ function buildVoyages(group, topY, models, shared, island) {
 
   // A few crates near the shore. Small props: rest essentially on the surface
   // (base contact minus a tiny sink) and relocate off any steep slope.
-  const crateMat = new THREE.MeshStandardMaterial({ color: 0x5a4126, roughness: 0.95, flatShading: true });
+  const crateMat = pbrMaterial({ color: 0x6d6251, roughness: 0.97, flatShading: false }, "wood");
   for (let i = 0; i < 4; i++) {
     const c = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), crateMat);
-    const spot = groundSpot(island, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, 2.0);
-    c.position.set(spot.lx, spot.y + 0.65 - 0.04, spot.lz);
-    c.rotation.y = Math.random();
+    const spec = grounding.crates[i];
+    const contact = landmarkFootprint(island, spec);
+    c.position.set(spec.lx, contact.y + 0.65, spec.lz);
+    c.rotation.y = 0.18 + i * 0.73;
     group.add(c);
   }
 
@@ -2988,6 +4078,7 @@ function buildVoyages(group, topY, models, shared, island) {
   addPointGlow(group, dirToCenter.x * endD, 2.6, dirToCenter.y * endD, 0xffb877, 9, 34);
 
   island.beats = beats;
+  registerLandmarkDebris(island, 5.4, 12, 2.2);
 }
 
 // Which GLB and scale each moored vessel uses. Basics is the flagship (B2).
@@ -3003,7 +4094,7 @@ function vesselSpec(i) {
 // something to frame.
 function buildProceduralDinghy(target) {
   const g = new THREE.Group();
-  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.9, flatShading: true });
+  const wood = pbrMaterial({ color: 0x746957, roughness: 0.95, flatShading: false }, "wood");
   const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, target * 0.9, 6, 1), wood);
   hull.rotation.x = Math.PI / 2;
   hull.scale.set(1, 2.4, 1);
@@ -3014,64 +4105,67 @@ function buildProceduralDinghy(target) {
 
 // ---- The Oracle: ruined temple on a peak, brazier, amber pillar ------------
 function buildOracle(group, topY, models, shared, island) {
-  // Raise a small peak so the oracle sits high.
-  const peakGeo = new THREE.ConeGeometry(island.radius * 0.7, 8, 7);
-  jitterGeometry(peakGeo, 0.12);
-  peakGeo.computeVertexNormals();
-  const peak = new THREE.Mesh(peakGeo, shared.matRock);
-  peak.position.y = topY + 3.5;
-  group.add(peak);
-  // The peak now becomes part of the grounding surface so summit props seat on
-  // it rather than on the lower dome (TASK A).
-  group.updateWorldMatrix(true, true);
-  island.groundTargets.push(peak);
-  const peakTop = groundY(island, 0, 0, topY + 7);
-
-  if (models["ruins-columns"]) {
-    const ruin = prepModel(models["ruins-columns"], 9, "max");
-    ruin.position.y = peakTop - 0.2;
-    group.add(ruin);
-  } else if (models.column) {
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
-      const col = prepModel(models.column, 5, "height");
-      const cx = Math.cos(a) * 2.2;
-      const cz = Math.sin(a) * 2.2;
-      col.position.set(cx, groundY(island, cx, cz, peakTop) - 0.2, cz);
-      col.rotation.z = (Math.random() - 0.5) * 0.2;
-      group.add(col);
-    }
+  const grounding = R6_LANDMARK_GROUNDING.oracle;
+  const lighthouseSpec = grounding.lighthouse;
+  const lighthouseContact = landmarkFootprint(island, lighthouseSpec);
+  const peakTop = lighthouseContact.max + 0.04;
+  if (models.lighthouse) {
+    const lighthouse = buildMergedGlbFoundation(
+      models.lighthouse, R6_LANDMARK_CONFIG.silhouettes.lighthouseTargetHeight, "height", V.landmarkMaterials.weathered,
+      "lighthouse", lighthouseSpec.width, lighthouseSpec.depth, 0.26, lighthouseContact,
+    );
+    lighthouse.position.set(lighthouseSpec.lx, 0, lighthouseSpec.lz);
+    group.add(lighthouse);
+    assertR6LandmarkHeight(lighthouse, "lighthouse", lighthouseContact.min - lighthouseSpec.sink);
+  } else {
+    const towerParts = new THREE.Group();
+    const fallbackBodyHeight = R6_LANDMARK_CONFIG.silhouettes.lighthouseTargetHeight - 0.4;
+    const towerBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 2.5, fallbackBodyHeight, 16),
+      V.landmarkMaterials.weathered,
+    );
+    towerBody.position.y = fallbackBodyHeight * 0.5 + 0.2;
+    const towerSkirt = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.0, 0.26, 18), V.landmarkMaterials.weathered);
+    towerSkirt.position.y = 0.13;
+    towerParts.add(towerBody, towerSkirt);
+    const tower = registerR6Draw(
+      mergeScenePrimitives(towerParts, V.landmarkMaterials.weathered, "lighthouse-merged-fallback"),
+      "lighthouse",
+    );
+    tower.position.y = peakTop;
+    group.add(tower);
+    assertR6LandmarkHeight(tower, "lighthouse", lighthouseContact.min - lighthouseSpec.sink);
   }
+  const lamp = glowMarker(0xffd094, 0.82, 3.6);
+  const lighthouseCrownY = peakTop + R6_LANDMARK_CONFIG.silhouettes.lighthouseTargetHeight - 0.2;
+  lamp.position.set(0, lighthouseCrownY, 0);
+  group.add(lamp);
+  addPointGlow(group, 0, lighthouseCrownY, 0, 0xffb56a, 12, 58);
 
-  // Glowing brazier altar at the summit and a strong amber light pillar.
-  // Brightened so the Oracle reads from spawn (V1); grounded on the peak.
+  // A contact brazier sits on the seaward overlook beneath the lighthouse.
   const brazier = buildBrazier(shared);
-  const altarGY = groundY(island, 0, 0, peakTop);
-  brazier.position.set(0, altarGY - 0.05, 0);
+  const altarSpec = grounding.brazier;
+  const altarContact = landmarkFootprint(island, altarSpec);
+  const altarSpot = { lx: altarSpec.lx, lz: altarSpec.lz, y: altarContact.y };
+  const altarGY = altarSpot.y;
+  brazier.position.set(altarSpot.lx, altarGY, altarSpot.lz);
   brazier.scale.setScalar(1.1);
   group.add(brazier);
-  addPointGlow(group, 0, altarGY + 2.4, 0, 0xff9a3c, 14, 44);
+  addPointGlow(group, altarSpot.lx, altarGY + 2.4, altarSpot.lz, 0xff9a3c, 10, 38);
 
-  // A brighter, taller amber light pillar unique to the Oracle.
-  const pillar = buildBeacon(peakTop + 20);
-  pillar.material.uniforms.uColor.value.set(0xffab52);
-  pillar.position.y = peakTop;
-  pillar.scale.set(0.7, 1, 0.7);
-  group.add(pillar);
-
-  island.lookHeight = peakTop + 4;
-  island.embers = buildEmbers(group, new THREE.Vector3(0, altarGY + 2.5, 0));
+  island.lookHeight = lighthouseCrownY - 0.8;
+  island.embers = buildEmbers(group, new THREE.Vector3(altarSpot.lx, altarGY + 2.5, altarSpot.lz));
   V.embers.push(island.embers);
 
-  // Beat tour poses (B2): the ruined arch and columns, then the brazier altar
-  // close-up (where the UI renders the working contact form).
-  const ruins = anchorAt(island, 0, peakTop + 3, 0);
-  const altar = anchorAt(island, 0, altarGY + 2.1, 0);
-  const o1 = makeBeatOutward(island, ruins, 16, topY + 4, 1, 2.5);
-  const o2 = makeBeat(altar, Math.atan2(island.center.x, island.center.z), 9, altarGY + 4, 0.3);
+  const ruins = anchorAt(island, 0, peakTop + R6_LANDMARK_CONFIG.silhouettes.lighthouseTargetHeight * 0.58, 0);
+  const altar = anchorAt(island, altarSpot.lx, altarGY + 2.1, altarSpot.lz);
+  const o1 = makeBeatOutward(island, ruins, 22, peakTop + 13, 1, 4.5);
+  const o2 = makeBeat(altar, Math.atan2(island.outward.x, island.outward.y), 9, altarGY + 4, 0.3);
+  o1.emissives = [glowEmissive(lamp, 1.7)];
   const coal = brazier.userData.coal;
   if (coal) o2.emissives = [glowEmissive(coal, 1.8)];
   island.beats = [o1, o2];
+  registerLandmarkDebris(island, 5.2, 16, 1.7);
 }
 
 // ===========================================================================
@@ -3093,10 +4187,9 @@ function bindInput() {
       if (k.startsWith("arrow")) e.preventDefault();
     }
     if (k === "e") {
-      // Dock only when a prompt is visible and we are actually sailing.
-      if (V.mode === "sailing" && V.nearIsland) {
-        beginDock(V.nearIsland);
-      }
+      // Keyboard and touch share the exact same guarded public transition.
+      // Ignoring repeats prevents a held key from racing docking/undocking.
+      if (!e.repeat && requestDock()) e.preventDefault();
     }
   };
   const onKeyUp = (e) => {
@@ -3296,28 +4389,93 @@ function igniteFlame(id, chime) {
 }
 
 // ===========================================================================
-// COURSE LINE: dotted amber guide toward the current target island (A4)
+// COURSE LINE: fine treasure-map bearing dashes projected onto the sea (A4)
 // ===========================================================================
-function buildCourseLine() {
-  const count = 40;
-  const geo = new THREE.PlaneGeometry(0.5, 1.6);
-  geo.rotateX(-Math.PI / 2); // lie flat, long axis along +Z (heading convention)
-  const mat = new THREE.MeshBasicMaterial({
-    color: COL.amber,
+function courseRibbonMaterial(yOffset, opacity) {
+  const amber = new THREE.Color(COL.amber);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uShipPos: { value: new THREE.Vector3() },
+      uColor: { value: new THREE.Vector3(amber.r, amber.g, amber.b) },
+      uYOffset: { value: yOffset },
+      uOpacity: { value: opacity },
+    },
     transparent: true,
-    opacity: 0.35,
-    blending: THREE.AdditiveBlending,
     depthWrite: false,
-    fog: true,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+    vertexShader: `
+      precision highp float;
+      uniform float uTime, uYOffset;
+      uniform vec3 uShipPos;
+      varying vec2 vRibbonUv;
+      varying float vRibbonAlpha;
+      ${oceanHeightGLSL()}
+      void main(){
+        vec4 local = instanceMatrix * vec4(position, 1.0);
+        vec4 world = modelMatrix * local;
+        world.y = oceanHeight(world.xz, uTime) + uYOffset;
+        vRibbonUv = uv;
+        #ifdef USE_INSTANCING_COLOR
+          vRibbonAlpha = instanceColor.r;
+        #else
+          vRibbonAlpha = 1.0;
+        #endif
+        // Suppress any dash that approaches the chase camera/ship. This keeps
+        // perspective from turning nearby ink into a thick additive streak.
+        vRibbonAlpha *= smoothstep(18.0, 30.0, distance(world.xz, uShipPos.xz));
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      varying vec2 vRibbonUv;
+      varying float vRibbonAlpha;
+      void main(){
+        float sideFeather = smoothstep(0.0, 0.28, vRibbonUv.x)
+                          * smoothstep(0.0, 0.28, 1.0-vRibbonUv.x);
+        float endFeather = smoothstep(0.0, 0.16, vRibbonUv.y)
+                         * smoothstep(0.0, 0.16, 1.0-vRibbonUv.y);
+        float alpha = vRibbonAlpha * sideFeather * endFeather * uOpacity;
+        if(alpha < 0.003) discard;
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `,
   });
   mat.toneMapped = false;
-  const inst = new THREE.InstancedMesh(geo, mat, count);
+  return mat;
+}
+
+function buildCourseLine() {
+  const count = COURSE_DASH_COUNT;
+  // Narrow fixed world dimensions plus the shader's near-ship fade keep the ink
+  // thin at every useful distance. Subdivision lets each dash follow the wave.
+  const geo = new THREE.PlaneGeometry(0.14, 1.55, 1, 4);
+  geo.rotateX(-Math.PI / 2);
+  const inst = new THREE.InstancedMesh(geo, courseRibbonMaterial(0.045, 0.68), count);
+  const glowGeo = new THREE.PlaneGeometry(0.34, 1.95, 1, 4);
+  glowGeo.rotateX(-Math.PI / 2);
+  const glow = new THREE.InstancedMesh(glowGeo, courseRibbonMaterial(0.035, 0.07), count);
   inst.frustumCulled = false;
+  glow.frustumCulled = false;
+  glow.renderOrder = 1;
+  inst.renderOrder = 2;
   inst.visible = false;
-  for (let i = 0; i < count; i++) inst.setColorAt(i, _colr.setScalar(1));
+  glow.visible = false;
+  for (let i = 0; i < count; i++) {
+    inst.setColorAt(i, _colr.setScalar(1));
+    glow.setColorAt(i, _colr.setScalar(1));
+  }
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-  V.scene.add(inst);
-  V.courseLine = { inst, count };
+  if (glow.instanceColor) glow.instanceColor.needsUpdate = true;
+  V.scene.add(glow, inst);
+  V.courseLine = { inst, glow, count };
 }
 
 function currentTargetIsland() {
@@ -3330,40 +4488,79 @@ function currentTargetIsland() {
 function updateCourseLine() {
   const CL = V.courseLine;
   if (!CL) return;
+  // Wave conformance updates every frame even when route matrices are throttled.
+  CL.inst.material.uniforms.uTime.value = V.time;
+  CL.inst.material.uniforms.uShipPos.value.set(V.pos.x, 0, V.pos.z);
+  CL.glow.material.uniforms.uTime.value = V.time;
+  CL.glow.material.uniforms.uShipPos.value.set(V.pos.x, 0, V.pos.z);
   const target = currentTargetIsland();
   const show = V.mode === "sailing" && !!target;
   CL.inst.visible = show;
+  CL.glow.visible = show;
+  const targetChanged = V.courseTarget !== (show ? target : null);
   V.courseTarget = show ? target : null;
   if (!show) return;
   V.courseFrame++;
-  if (V.courseFrame % 3 !== 0) return;
+  if (!targetChanged && V.courseFrame % 3 !== 0) return;
 
   _fwd.set(Math.sin(V.heading), 0, Math.cos(V.heading));
   const sx = V.pos.x + _fwd.x * 6;
   const sz = V.pos.z + _fwd.z * 6;
-  const dx = target.center.x - sx;
-  const dz = target.center.z - sz;
-  const full = Math.hypot(dx, dz) || 1;
-  const ux = dx / full;
-  const uz = dz / full;
-  const stop = Math.max(0.001, full - (target.radius + 6));
-  const dirAng = Math.atan2(ux, uz);
-  _q1.setFromEuler(_e2.set(0, dirAng, 0));
-  _sv.set(1, 1, 1);
+  const route = V.autopilot.active && V.autopilot.route.length
+    ? V.autopilot.route.slice(V.autopilot.routeIndex)
+    : makeCoastalRoute(sx, sz, target);
+  const points = [new THREE.Vector3(sx, 0, sz), ...route];
+  const lengths = [0];
+  let full = 0;
+  for (let i = 1; i < points.length; i++) {
+    full += points[i].distanceTo(points[i - 1]);
+    lengths.push(full);
+  }
   const count = CL.count;
+  const dashSpacing = 4.15;
+  const used = Math.min(count, Math.max(0, Math.floor(full / dashSpacing)));
   for (let i = 0; i < count; i++) {
-    const t = count > 1 ? i / (count - 1) : 0;
-    const dd = t * stop;
-    const px = sx + ux * dd;
-    const pz = sz + uz * dd;
-    _pv.set(px, waveHeight(px, pz, V.time) + 0.16, pz);
+    if (i >= used) {
+      _sv.set(0, 0, 0);
+      _pv.set(sx, 0, sz);
+      _m1.compose(_pv, _q1.identity(), _sv);
+      CL.inst.setMatrixAt(i, _m1);
+      CL.glow.setMatrixAt(i, _m1);
+      CL.inst.setColorAt(i, _colr.setScalar(0));
+      CL.glow.setColorAt(i, _colr.setScalar(0));
+      continue;
+    }
+    const dd = Math.min(full, (i + 1) * dashSpacing);
+    let si = 1;
+    while (si < lengths.length - 1 && lengths[si] < dd) si++;
+    const a = points[si - 1], b = points[si];
+    const span = Math.max(0.001, lengths[si] - lengths[si - 1]);
+    const lt = (dd - lengths[si - 1]) / span;
+    const px = a.x + (b.x - a.x) * lt;
+    const pz = a.z + (b.z - a.z) * lt;
+    _q1.setFromEuler(_e2.set(0, Math.atan2(b.x - a.x, b.z - a.z), 0));
+    _sv.set(1, 1, 1);
+    _pv.set(px, 0, pz);
     _m1.compose(_pv, _q1, _sv);
     CL.inst.setMatrixAt(i, _m1);
-    const fade = Math.min(smoothstep(0.0, 0.1, t), smoothstep(1.0, 0.86, t));
+    CL.glow.setMatrixAt(i, _m1);
+    // Ink appears just beyond the bow, dims with world distance, and dissolves
+    // again over the final 25u so it never becomes a destination underline.
+    const worldDistance = Math.hypot(px - V.pos.x, pz - V.pos.z);
+    const cameraDistance = Math.hypot(px - V.camera.position.x, pz - V.camera.position.z);
+    const remaining = Math.max(0, full - dd);
+    const bowFade = smoothstep(18, 30, worldDistance);
+    const cameraFade = smoothstep(12, 22, cameraDistance);
+    const distanceFade = 1 - smoothstep(42, 148, worldDistance);
+    const destinationFade = smoothstep(2.5, 25, remaining);
+    const fade = bowFade * cameraFade * distanceFade * destinationFade;
     CL.inst.setColorAt(i, _colr.setScalar(fade));
+    CL.glow.setColorAt(i, _colr.setScalar(fade));
   }
   CL.inst.instanceMatrix.needsUpdate = true;
+  CL.glow.instanceMatrix.needsUpdate = true;
   if (CL.inst.instanceColor) CL.inst.instanceColor.needsUpdate = true;
+  if (CL.glow.instanceColor) CL.glow.instanceColor.needsUpdate = true;
 }
 
 function smoothstep(e0, e1, x) {
@@ -3382,8 +4579,8 @@ function updateCompass(dt) {
   V.compassAccum = 0;
   const nextId = firstUnvisitedId();
   const islands = V.islands.map((isl) => {
-    const bx = isl.center.x - V.pos.x;
-    const bz = isl.center.z - V.pos.z;
+    const bx = isl.dockPoint.x - V.pos.x;
+    const bz = isl.dockPoint.z - V.pos.z;
     const nm = COPY.names[isl.id] || { name: isl.def.name, tag: isl.def.tag };
     return {
       id: isl.id,
@@ -3512,31 +4709,39 @@ function emitBeatAnchor(beat) {
 // ===========================================================================
 // ATTRACT + INTRO DIVE cameras (V4)
 // ===========================================================================
-// A composed day film-still: the sun and Origins toward the far +Z with a
-// sparkling sun road, cumulus overhead, the ship a small speck on the bright
-// sea, and the flanking islands framed left and right, with a slow drift (7).
+// A composed day film-still: the unified island fills the middle distance, the
+// acropolis and lighthouse break its silhouette, and the ship crosses a sun road.
 function setAttractCamera() {
   const cam = V.camera;
-  // A high wide aerial from the south, looking north over the ship toward the
-  // sun and Origins, with the flanking islands framed left and right. The drift
-  // is a slow, almost imperceptible orbit (60s period).
-  const lookX = 0,
-    lookY = 24,
-    lookZ = 22;
+  // A low aerial sits behind the same ship -> dock -> summit sightline used at
+  // spawn, so the scroll reveal and the chase-camera handoff tell one story.
+  const lookX = HERO_POINT.x,
+    lookY = HERO_POINT.y,
+    lookZ = HERO_POINT.z;
   const drift = Math.sin(V.time * ((Math.PI * 2) / 60)) * 0.08;
-  const ang = Math.PI + drift; // straight south, looking north over the ship
-  const R = 168;
-  // A lower, closer altitude than the night poster so the frame reads more vivid
-  // near-sea and less distant haze, while the sun, horizon and cumulus still
-  // settle into the upper third below the nav (point 7).
-  const H = 56 + Math.sin(V.time * ((Math.PI * 2) / 74)) * 2.4;
-  cam.position.set(lookX + Math.sin(ang) * R, H, lookZ + Math.cos(ang) * R);
+  const ang = SPAWN.heading + drift;
+  const R = 165;
+  const H = 52 + Math.sin(V.time * ((Math.PI * 2) / 74)) * 2.2;
+  cam.position.set(lookX - Math.sin(ang) * R, H, lookZ - Math.cos(ang) * R);
   V.camLook.set(lookX, lookY, lookZ);
   if (Math.abs(cam.fov - 60) > 0.01) {
-    cam.fov = 60; // wide enough to frame the flanking islands and the moon
+    cam.fov = 58;
     cam.updateProjectionMatrix();
   }
   cam.lookAt(V.camLook);
+}
+
+function setSpawnAwareChaseLook(out, shipY) {
+  const sinH = Math.sin(V.heading);
+  const cosH = Math.cos(V.heading);
+  out.set(V.pos.x + sinH * 2, shipY + CAM_LOOK_Y, V.pos.z + cosH * 2);
+  const distanceFromSpawn = Math.hypot(V.pos.x - SPAWN.x, V.pos.z - SPAWN.z);
+  const radius = R6_LANDMARK_CONFIG.spawnFraming.heroBlendRadius;
+  const t = Math.max(0, Math.min(1, 1 - distanceFromSpawn / radius));
+  const heroBlend = t * t * (3 - 2 * t);
+  out.x += (HERO_POINT.x - out.x) * heroBlend;
+  out.y += (HERO_POINT.y - out.y) * heroBlend;
+  out.z += (HERO_POINT.z - out.z) * heroBlend;
 }
 
 // Chase pose behind the ship, used by sailing and the intro dive end.
@@ -3549,7 +4754,7 @@ function computeChasePose(outPos, outLook) {
     shipY + CAM_OFF_Y,
     V.pos.z + CAM_OFF_Z * cosH - CAM_OFF_X * sinH
   );
-  outLook.set(V.pos.x + sinH * 2, shipY + CAM_LOOK_Y, V.pos.z + cosH * 2);
+  setSpawnAwareChaseLook(outLook, shipY);
 }
 
 // Autopilot steering toward the current sailTo target (V3).
@@ -3559,19 +4764,30 @@ function autopilotInput() {
     V.autopilot.active = false;
     return { throttle: 0, turn: 0 };
   }
-  const dx = isl.center.x - V.pos.x;
-  const dz = isl.center.z - V.pos.z;
-  const dist = Math.hypot(dx, dz);
-  const approach = dist - isl.radius;
+  const ap = V.autopilot;
+  if (!ap.route.length) ap.route = makeCoastalRoute(V.pos.x, V.pos.z, isl);
+  let waypoint = ap.route[Math.min(ap.routeIndex, ap.route.length - 1)];
+  let dx = waypoint.x - V.pos.x;
+  let dz = waypoint.z - V.pos.z;
+  let dist = Math.hypot(dx, dz);
+  if (dist < 8 && ap.routeIndex < ap.route.length - 1) {
+    ap.routeIndex++;
+    waypoint = ap.route[ap.routeIndex];
+    dx = waypoint.x - V.pos.x;
+    dz = waypoint.z - V.pos.z;
+    dist = Math.hypot(dx, dz);
+  }
+  const finalLeg = ap.routeIndex >= ap.route.length - 1;
+  const approach = finalLeg ? dist : Math.max(28, dist);
   const desired = Math.atan2(dx, dz);
   const dh = signedAngle(desired - V.heading);
   const turn = Math.max(-1, Math.min(1, dh * 2.4));
   let throttle;
-  if (approach <= 22) {
+  if (finalLeg && approach <= 11) {
     // Inside dock-prompt range: brake and, once settled, auto-dock the target so
     // a hands-off sailTo flows straight into the beat tour (no E/tap needed).
     throttle = 0;
-    if (approach <= 18 || Math.abs(V.speed) < 1.4) {
+    if (approach <= 7 || Math.abs(V.speed) < 1.2) {
       V.autopilot.active = false;
       V.autopilot.arrived = true; // arrival, not a manual cancel: schedule auto-dock
       V.autopilot.arriveTimer = 0.5;
@@ -3582,7 +4798,7 @@ function autopilotInput() {
     // ship turns onto the bearing instead of orbiting the target, and eases off
     // as it nears so it does not overshoot. A small floor keeps turn authority.
     const align = Math.max(0, Math.cos(dh));
-    const distFactor = Math.min(1, approach / 40);
+    const distFactor = Math.min(1, approach / 42);
     throttle = 0.28 + 0.72 * align * distFactor;
   }
   return { throttle, turn };
@@ -3714,8 +4930,10 @@ function loop() {
   if (!V || !V.running) return;
   V.rafId = requestAnimationFrame(loop);
   const nowT = performance.now();
-  let dt = V.lastT ? (nowT - V.lastT) / 1000 : 0;
+  const frameMs = V.lastT ? nowT - V.lastT : 0;
+  let dt = frameMs / 1000;
   V.lastT = nowT;
+  if (frameMs > 0 && frameMs < 250) recordFramePerformance(frameMs);
   if (dt > 0.05) dt = 0.05; // clamp big gaps (tab switches)
   V.time += dt;
   update(dt);
@@ -3724,6 +4942,8 @@ function loop() {
 
 function update(dt) {
   V.oceanMat.uniforms.uTime.value = V.time;
+  updateTerrainMaterialTime(V.terrainMaterial, V.time);
+  updateTerrainMaterialTime(V.rockMaterial, V.time);
 
   if (V.wheelCooldown > 0) V.wheelCooldown = Math.max(0, V.wheelCooldown - dt);
 
@@ -3741,6 +4961,7 @@ function update(dt) {
   updateVessels();
   updateFlames(dt);
   updateClouds();
+  updateBirds();
   updateProximity();
   updateLabels();
   updateCompass(dt);
@@ -3757,6 +4978,12 @@ function update(dt) {
 function syncWorld() {
   if (!V || !V.oceanMat || !V.ocean) return;
   V.oceanMat.uniforms.uTime.value = V.time;
+  updateTerrainMaterialTime(V.terrainMaterial, V.time);
+  updateTerrainMaterialTime(V.rockMaterial, V.time);
+  if (V.r5Scatter) {
+    V.r5Scatter.updateWind(V.time);
+    V.r5Scatter.updateForCamera(V.camera);
+  }
   V.oceanMat.uniforms.uCamPos.value.copy(V.camera.position);
   // Ship world xz drives the calm ring in the wave height function. Set in place
   // (no allocation); y is the buoyant hull height.
@@ -3864,14 +5091,59 @@ function updateShipPhysics(dt) {
   V.bank += (targetBank - V.bank) * (1 - Math.exp(-6 * dt));
 }
 
-// Soft radial repulsion so the ship grounds gently on shores instead of sailing
-// through the rock. Runs against every island and the colossal ruin (F1, N3).
+// Coast-normal collision with a water-depth margin. Oblique approaches have
+// their inward component removed and retain the tangent component, so the ship
+// slides along the foam line instead of riding onto the beach or dead-stopping.
 function resolveCollisions(dt) {
   _fwd.set(Math.sin(V.heading), 0, Math.cos(V.heading));
-  for (const isl of V.islands) {
-    collideCircle(dt, isl.center.x, isl.center.z, isl.collideR);
-  }
+  collideIslandShape(dt);
   if (V.ruin) collideCircle(dt, V.ruin.center.x, V.ruin.center.z, V.ruin.collideR);
+}
+
+function collideIslandShape(dt) {
+  const field = islandShapeFieldWorld(V.pos.x, V.pos.z);
+  if (field == null || field < -SHORE_SOFT_DISTANCE) return;
+  const e = Math.max(V.terrainField.dx, V.terrainField.dz);
+  // Shared SDF increases inland; negate its gradient to get the seaward normal.
+  let nx = -(islandShapeFieldWorld(V.pos.x + e, V.pos.z) - islandShapeFieldWorld(V.pos.x - e, V.pos.z));
+  let nz = -(islandShapeFieldWorld(V.pos.x, V.pos.z + e) - islandShapeFieldWorld(V.pos.x, V.pos.z - e));
+  const nl = Math.hypot(nx, nz) || 1;
+  nx /= nl; nz /= nl;
+  const travelSign = V.speed < 0 ? -1 : 1;
+  const moveX = _fwd.x * travelSign;
+  const moveZ = _fwd.z * travelSign;
+  const approach = Math.max(0, -(moveX * nx + moveZ * nz));
+
+  if (field > -SHORE_SAFE_DISTANCE) {
+    // Push the hull centre back to the seven-unit navigable-water contour.
+    const push = (field + SHORE_SAFE_DISTANCE) * (1 - Math.exp(-24 * dt));
+    V.pos.x += nx * push;
+    V.pos.z += nz * push;
+
+    if (approach > 0.001) {
+      // Strip only the into-shore component. Preserve and steer toward the
+      // tangent component so glancing collisions become a convincing slide.
+      let slideX = moveX + nx * approach;
+      let slideZ = moveZ + nz * approach;
+      const slideLen = Math.hypot(slideX, slideZ);
+      if (slideLen > 0.08) {
+        slideX = slideX / slideLen + nx * 0.08;
+        slideZ = slideZ / slideLen + nz * 0.08;
+        const desiredTravel = Math.atan2(slideX, slideZ);
+        const desiredHeading = travelSign > 0 ? desiredTravel : signedAngle(desiredTravel + Math.PI);
+        V.heading = lerpAngle(V.heading, desiredHeading, 1 - Math.exp(-9 * dt));
+        V.speed *= Math.max(0.38, slideLen);
+      } else {
+        V.speed *= Math.exp(-(7 + 10 * approach) * dt);
+      }
+    }
+    V.ground = Math.min(1, V.ground + approach * 0.28 + 0.035);
+  } else if (approach > 0) {
+    const band = (field + SHORE_SOFT_DISTANCE) / (SHORE_SOFT_DISTANCE - SHORE_SAFE_DISTANCE);
+    V.speed *= Math.exp(-0.75 * dt * band * approach);
+    V.pos.x += nx * band * approach * 3.2 * dt;
+    V.pos.z += nz * band * approach * 3.2 * dt;
+  }
 }
 
 function collideCircle(dt, cx, cz, collideR) {
@@ -3972,7 +5244,7 @@ function updateCamera(dt) {
     cam.position.lerpVectors(V.introFrom.pos, _cp, tt);
     V.camLook.lerpVectors(V.introFrom.look, _cl, tt);
     // Ease the poster lens back to the sailing FOV over the dive.
-    const fov = 60 + (55 - 60) * tt;
+    const fov = 58 + (55 - 58) * tt;
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       V.fov = fov;
@@ -4021,7 +5293,7 @@ function updateCamera(dt) {
   cam.position.lerp(_v1, k);
 
   // Smoothed look target slightly ahead of and above the ship.
-  _v2.set(V.pos.x + sinH * 2.0, V.ship.group.position.y + CAM_LOOK_Y, V.pos.z + cosH * 2.0);
+  setSpawnAwareChaseLook(_v2, V.ship.group.position.y);
   V.camLook.lerp(_v2, k);
   cam.lookAt(V.camLook);
 
@@ -4069,6 +5341,18 @@ function lerpAngle(a, b, t) {
 // ===========================================================================
 // PROXIMITY / DOCKING
 // ===========================================================================
+function dockRangeAccessible(island) {
+  if (!V.terrainField) return true;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const x = V.pos.x + (island.dockPoint.x - V.pos.x) * t;
+    const z = V.pos.z + (island.dockPoint.z - V.pos.z) * t;
+    const sdf = V.terrainField.sampleSdf(x, z);
+    if (sdf != null && sdf > -3.5) return false;
+  }
+  return true;
+}
+
 function updateProximity() {
   if (V.mode === "docked" || V.mode === "docking" || V.mode === "undocking") {
     if (typeof V.opts.onPromptUpdate === "function") V.opts.onPromptUpdate({ visible: false, x: 0, y: 0, label: "" });
@@ -4078,16 +5362,17 @@ function updateProximity() {
   let nearest = null;
   let nearestD = Infinity;
   for (const isl of V.islands) {
-    const dx = V.pos.x - isl.center.x;
-    const dz = V.pos.z - isl.center.z;
-    const d = Math.hypot(dx, dz) - isl.radius;
+    const dx = V.pos.x - isl.dockPoint.x;
+    const dz = V.pos.z - isl.dockPoint.z;
+    const d = Math.hypot(dx, dz);
     if (d < nearestD) {
       nearestD = d;
       nearest = isl;
     }
     // Hysteresis for the in-range flag.
-    if (!isl.inRange && d < 26) isl.inRange = true;
-    else if (isl.inRange && d > 34) isl.inRange = false;
+    const waterConnected = d < 28 ? dockRangeAccessible(isl) : true;
+    if (!isl.inRange && d < 18 && waterConnected) isl.inRange = true;
+    else if (isl.inRange && (d > 26 || !waterConnected)) isl.inRange = false;
   }
 
   const cand = nearest && nearest.inRange ? nearest : null;
@@ -4103,9 +5388,14 @@ function updateProximity() {
     // The prompt renders 130% above its anchor, so it needs a taller top pad.
     // The wide side pad keeps the centered pill clear of the edges.
     const sp = projectClamped(_proj, 96, 80, 28);
-    const label = V.isTouch ? COPY.dockMobile : COPY.dockDesktop;
+    const regionName = (COPY.names[cand.id] && COPY.names[cand.id].name) || cand.def.name || cand.id;
+    const template = V.isTouch ? COPY.dockMobile : COPY.dockDesktop;
+    const label = String(template || "Press E to drop anchor at {name}").replace("{name}", regionName);
     if (typeof V.opts.onPromptUpdate === "function") {
-      V.opts.onPromptUpdate({ visible: sp.visible, x: sp.x, y: sp.y, label });
+      const approach = V.autopilot.active || V.autopilot.arrived ? "auto" : "manual";
+      // Dock range is the interaction contract. The anchor is clamped to the
+      // viewport, so an in-range prompt remains actionable even at frame edges.
+      V.opts.onPromptUpdate({ visible: true, x: sp.x, y: sp.y, label, islandId: cand.id, regionName, approach });
     }
   } else {
     if (typeof V.opts.onPromptUpdate === "function") V.opts.onPromptUpdate({ visible: false, x: 0, y: 0, label: "" });
@@ -4115,11 +5405,12 @@ function updateProximity() {
 function updateLabels() {
   if (typeof V.opts.onLabelsUpdate !== "function") return;
   const list = [];
-  // Beacon labels are visible from ANY distance while sailing, never otherwise
-  // (docked, docking, intro, attract). Distance only fades opacity, never
-  // legibility (A2). Payload carries the chapter numeral and visited flag so the
-  // UI can render CHAPTER I over the name and add the visited amber dot (A2, C2).
+  // Region labels are ranked in screen space; the UI shows only the strongest
+  // two or three and resolves their exact DOM rectangles. This payload carries
+  // distance/facing priority plus chapter state for that final collision pass.
   const showAll = V.mode === "sailing";
+  const courseTarget = currentTargetIsland();
+  V.camera.getWorldDirection(_v4);
   for (const isl of V.islands) {
     const nm = COPY.names[isl.id] || { name: isl.def.name, tag: isl.def.tag };
     if (showAll) {
@@ -4128,6 +5419,9 @@ function updateLabels() {
       const d = Math.hypot(dx, dz);
       _proj.set(isl.center.x, isl.lookHeight + 8, isl.center.z);
       const sp = projectClamped(_proj, 56, 60, 44);
+      _v3.copy(_proj).sub(V.camera.position).normalize();
+      const facing = Math.max(0, _v4.dot(_v3));
+      const centerBias = 1 - Math.min(1, Math.abs(sp.x - window.innerWidth * 0.5) / (window.innerWidth * 0.5));
       const opacity = Math.max(0.55, 1 - Math.min(1, d / 260) * 0.45);
       list.push({
         id: isl.id,
@@ -4138,6 +5432,8 @@ function updateLabels() {
         tag: nm.tag,
         numeral: isl.numeral,
         opacity,
+        dist: d,
+        priority: (isl === courseTarget ? 5000 : 0) + (isl.inRange ? 3000 : 0) + facing * 900 + centerBias * 260 - d * 1.8,
         visited: V.visited.has(isl.id),
       });
     } else {
@@ -4178,6 +5474,7 @@ function projectClamped(v, padTop, padSide, padBottom) {
 }
 
 function beginDock(island) {
+  if (!V || V.mode !== "sailing" || !island || !V.islands.includes(island)) return false;
   V.autopilot.active = false; // arriving cancels autopilot (V3)
   V.autopilot.arrived = false;
   V.autopilot.dockIsland = null;
@@ -4203,14 +5500,271 @@ function beginDock(island) {
   playChime();
   // Clear any prompt immediately.
   if (typeof V.opts.onPromptUpdate === "function") V.opts.onPromptUpdate({ visible: false, x: 0, y: 0, label: "" });
+  return true;
 }
 
 // ===========================================================================
 // RENDER / RESIZE
 // ===========================================================================
+function percentile(values, q) {
+  if (!values.length) return 0;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1));
+  return sorted[index];
+}
+
+function resetPerformanceWindow() {
+  V.perfSamples.length = 0;
+  V.perfWarmupFrames = 0;
+  V.perfOverBudgetMs = 0;
+}
+
+function recordFramePerformance(frameMs) {
+  if (!V || !V.active || document.hidden) return;
+  V.perfSamples.push(frameMs);
+  if (V.perfSamples.length > RUNTIME_QUALITY.rollingFrames) V.perfSamples.shift();
+  if (V.perfWarmupFrames < RUNTIME_QUALITY.warmupFrames) {
+    V.perfWarmupFrames++;
+    return;
+  }
+  const frameTimeP90 = percentile(V.perfSamples, 0.9);
+  if (frameTimeP90 > RUNTIME_QUALITY.frameTimeP90LimitMs) {
+    V.perfOverBudgetMs += frameMs;
+  } else {
+    V.perfOverBudgetMs = 0;
+  }
+  if (V.perfOverBudgetMs >= RUNTIME_QUALITY.sustainedMs) {
+    applyNextRuntimeDegradation();
+    resetPerformanceWindow();
+  }
+}
+
+function logDegradation(message) {
+  console.info(`[voyage] quality step: ${message}`);
+}
+
+function applyNextRuntimeDegradation() {
+  if (!V || V.degradationExhausted) return;
+  while (V.degradationStep <= 4) {
+    const step = V.degradationStep++;
+    if (step === 0) {
+      const previous = V.dprCap;
+      const next = Math.max(
+        RUNTIME_QUALITY.minimumDpr,
+        Math.min(previous, V.profile.dprCap) * RUNTIME_QUALITY.dprScale,
+      );
+      if (next < previous - 0.01) {
+        V.dprCap = next;
+        handleResize();
+        logDegradation(`DPR ${previous.toFixed(2)} -> ${next.toFixed(2)}`);
+        return;
+      }
+    } else if (step === 1) {
+      if (V.bloom && V.bloomEnabled) {
+        V.bloomEnabled = false;
+        V.bloom.enabled = false;
+        logDegradation("bloom off");
+        return;
+      }
+    } else if (step === 2) {
+      if (V.r5Scatter) {
+        V.runtimeVegetationDensity *= RUNTIME_QUALITY.vegetationScale;
+        V.runtimeGrassDistanceScale *= RUNTIME_QUALITY.grassDistanceScale;
+        V.r5Scatter.setBudget({
+          targetCounts: V.profile.vegetationCounts,
+          density: V.runtimeVegetationDensity,
+          grassCullDistance: V.profile.grassDistance * V.runtimeGrassDistanceScale,
+        });
+        logDegradation(`vegetation ${Math.round(V.runtimeVegetationDensity * 100)}%, grass ${Math.round(V.profile.grassDistance * V.runtimeGrassDistanceScale)}u`);
+        return;
+      }
+    } else if (step === 3) {
+      if (V.r5Scatter && V.vegetationShadowsEnabled) {
+        V.vegetationShadowsEnabled = false;
+        V.r5Scatter.setShadowCasting(false);
+        invalidateStaticShadows();
+        logDegradation("vegetation and rock shadows off");
+        return;
+      }
+    } else {
+      const nextTier = nextQualityTier(V.quality);
+      if (nextTier) {
+        const previousTier = V.quality;
+        applyTierProfile(nextTier);
+        V.degradationStep = 0;
+        logDegradation(`tier ${previousTier} -> ${nextTier}`);
+        return;
+      }
+      V.degradationExhausted = true;
+    }
+  }
+}
+
+function applyTierProfile(tier) {
+  const profile = QUALITY_PROFILES[tier];
+  if (!profile || !V || tier === V.quality) return;
+  V.quality = tier;
+  V.profile = profile;
+  V.dprCap = Math.min(V.dprCap, profile.dprCap);
+  V.bloomEnabled = V.bloomEnabled && profile.bloom;
+  if (V.bloom) V.bloom.enabled = V.bloomEnabled;
+
+  document.documentElement.dataset.voyageQuality = tier;
+  document.body.classList.toggle("quality-mobile", tier === "mobile");
+  if (V.canvas) V.canvas.dataset.quality = tier;
+
+  for (const material of [
+    V.terrainMaterial,
+    V.rockMaterial,
+    ...Object.values(V.landmarkMaterials || {}),
+  ]) setTerrainMaterialQuality(material, tier);
+
+  if (V.terrain) {
+    const replacement = buildUnifiedIslandTerrain();
+    V.terrain.geometry.dispose();
+    V.terrain.geometry = replacement.geometry;
+  }
+  if (V.ocean) {
+    V.ocean.geometry.dispose();
+    V.ocean.geometry = buildOceanGeometry();
+  }
+
+  if (V.r5Scatter) {
+    V.r5Scatter.setBudget({
+      targetCounts: profile.vegetationCounts,
+      density: V.runtimeVegetationDensity,
+      grassCullDistance: profile.grassDistance * V.runtimeGrassDistanceScale,
+    });
+    V.r5Scatter.setShadowCasting(V.vegetationShadowsEnabled && profile.vegetationShadows);
+  }
+  V.clouds.forEach((cloud, index) => { cloud.mesh.visible = index < profile.cloudCount; });
+  V.motes.forEach((mote) => { mote.pts.visible = profile.motes; });
+  if (V.birds) {
+    V.birds.count = Math.min(V.birds.count, profile.birdCount);
+    V.birds.lines.geometry.setDrawRange(0, V.birds.count * 4);
+  }
+  if (V.wake) {
+    V.wake.activeCount = Math.min(V.wake.sprites.length, profile.wakeCount);
+    V.wake.cursor %= Math.max(1, V.wake.activeCount);
+  }
+
+  if (V.sun) {
+    V.sun.shadow.dispose();
+    V.sun.shadow.map = null;
+    V.sun.shadow.mapPass = null;
+    const shadowMapSize = selectShadowMapSize();
+    V.sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
+    V.sun.shadow.radius = profile.shadowRadius;
+    if ("blurSamples" in V.sun.shadow) {
+      V.sun.shadow.blurSamples = profile.shadowBlurSamples;
+    }
+    const center = stabilizedShadowCenter(shadowMapSize);
+    V.sun.position.copy(center).addScaledVector(MOON_DIR, SHADOW_CONFIG.lightDistance);
+    V.sun.target.position.copy(center);
+  }
+  buildEnvironmentFromSky();
+  handleResize();
+  invalidateStaticShadows();
+}
+
+function textureBytesPerPixel(texture) {
+  const channels = texture.format === THREE.RedFormat || texture.format === THREE.RedIntegerFormat
+    ? 1
+    : texture.format === THREE.RGFormat || texture.format === THREE.RGIntegerFormat
+      ? 2
+      : texture.format === THREE.RGBFormat || texture.format === THREE.RGBIntegerFormat
+        ? 3
+        : 4;
+  const bytes = texture.type === THREE.FloatType || texture.type === THREE.UnsignedIntType || texture.type === THREE.IntType
+    ? 4
+    : texture.type === THREE.HalfFloatType || texture.type === THREE.UnsignedShortType || texture.type === THREE.ShortType
+      ? 2
+      : 1;
+  return channels * bytes;
+}
+
+function estimateTextureBytes() {
+  if (!V) return 0;
+  const textures = new Set();
+  const targets = new Set();
+  const addTexture = (texture) => { if (texture && texture.isTexture) textures.add(texture); };
+  const addTarget = (target) => {
+    if (!target || !target.isWebGLRenderTarget || targets.has(target)) return;
+    targets.add(target);
+    addTexture(target.texture);
+    if (Array.isArray(target.textures)) target.textures.forEach(addTexture);
+    addTexture(target.depthTexture);
+  };
+  V.textures.forEach(addTexture);
+  addTexture(V.scene && V.scene.environment);
+  if (V.scene) V.scene.traverse((object) => {
+    const materials = object.material ? (Array.isArray(object.material) ? object.material : [object.material]) : [];
+    for (const material of materials) {
+      for (const value of Object.values(material)) addTexture(value);
+      const shader = material.userData && material.userData.terrainShader;
+      if (shader && shader.uniforms) {
+        for (const uniform of Object.values(shader.uniforms)) addTexture(uniform && uniform.value);
+      }
+    }
+  });
+  addTarget(V.environmentTarget);
+  addTarget(V.sun && V.sun.shadow.map);
+  if (V.composer) {
+    addTarget(V.composer.readBuffer);
+    addTarget(V.composer.writeBuffer);
+  }
+  if (V.bloom) {
+    addTarget(V.bloom.renderTargetBright);
+    (V.bloom.renderTargetsHorizontal || []).forEach(addTarget);
+    (V.bloom.renderTargetsVertical || []).forEach(addTarget);
+  }
+
+  let bytes = 0;
+  for (const texture of textures) {
+    const images = Array.isArray(texture.image) ? texture.image : [texture.image];
+    for (const image of images) {
+      const width = Number(image && image.width) || 0;
+      const height = Number(image && image.height) || 0;
+      const depth = Number(image && image.depth) || 1;
+      bytes += width * height * depth * textureBytesPerPixel(texture) * (texture.generateMipmaps ? 4 / 3 : 1);
+    }
+  }
+  return bytes;
+}
+
+function readPerformanceProbe() {
+  if (!V || !V.renderer) return null;
+  const frameP50 = percentile(V.perfSamples, 0.5);
+  const frameP90 = percentile(V.perfSamples, 0.9);
+  return {
+    tier: V.quality,
+    dpr: +V.renderer.getPixelRatio().toFixed(2),
+    drawCalls: V.renderer.info.render.calls,
+    triangles: V.renderer.info.render.triangles,
+    textureMB: +(estimateTextureBytes() / (1024 * 1024)).toFixed(2),
+    // FPS percentiles are derived from the matching frame-time percentiles so
+    // fpsP90 represents the slow tail used by the downgrade policy.
+    fpsP50: frameP50 > 0 ? +(1000 / frameP50).toFixed(1) : 0,
+    fpsP90: frameP90 > 0 ? +(1000 / frameP90).toFixed(1) : 0,
+  };
+}
+
+function invalidateStaticShadows() {
+  if (!V || !V.renderer || !V.renderer.shadowMap.enabled) return;
+  V.renderer.shadowMap.needsUpdate = true;
+}
+
+function freezeStaticShadowMap() {
+  if (!V || !V.renderer) return;
+  V.renderer.shadowMap.autoUpdate = false;
+  V.renderer.shadowMap.needsUpdate = false;
+  V.staticShadowsFrozen = true;
+}
+
 function renderFrame() {
   if (!V || !V.renderer) return;
-  if (V.composer && V.quality === "high") {
+  V.renderer.info.reset();
+  if (V.composer) {
     V.composer.render();
   } else {
     V.renderer.render(V.scene, V.camera);
@@ -4223,7 +5777,7 @@ function handleResize() {
   const h = window.innerHeight;
   V.camera.aspect = w / h;
   V.camera.updateProjectionMatrix();
-  V.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, V.quality === "high" ? 2 : 1.5));
+  V.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, V.dprCap));
   V.renderer.setSize(w, h, false);
   if (V.composer) {
     V.composer.setPixelRatio(V.renderer.getPixelRatio());

@@ -23,7 +23,6 @@ architecture. Every model here was visually checked against that direction befor
 | temple.glb | Greek temple with full peristyle of columns, gabled roof, stepped base. Marble white. | Alexandre Thomas (Ashtom) | CC-BY 3.0 | https://poly.pizza/m/cdMQnl19MB9 | 394,864 |
 | column.glb | Single clean Doric/Ionic column with base and capital. | Victor Vina | CC-BY 3.0 | https://poly.pizza/m/5VD5-v8NBZ4 | 86,952 |
 | ruins-columns.glb | Fluted column plus broken drums and a fallen shaft. For scattered ruins. | Duncan Anderson | CC-BY 3.0 | https://poly.pizza/m/cPD0rM1BNc1 | 42,828 |
-| tree-cypress.glb | Tall pointed Mediterranean cypress, flat-shaded green. | Andrea Zvinakis | CC-BY 3.0 | https://poly.pizza/m/4PHDVmmfFj9 | 14,912 |
 | lighthouse.glb | Grey stone low-poly lighthouse (monochrome, matches marble palette). | Robert Mirabelle | CC-BY 3.0 | https://poly.pizza/m/3gEvVZoTN7e | 239,856 |
 | amphora.glb | Greek amphora with handle, warm amber body with dark decorative bands. | Bruno Oliveira | CC-BY 3.0 | https://poly.pizza/m/7Q8MkXjALbL | 30,964 |
 | rocks-a.glb | Low-poly rock cluster. | Kenney | CC0 | https://kenney.nl/assets/pirate-kit | 27,644 |

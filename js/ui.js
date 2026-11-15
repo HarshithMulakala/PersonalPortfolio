@@ -36,25 +36,37 @@ function isCoarsePointer() {
 /* Module state                                                        */
 /* ------------------------------------------------------------------ */
 
-let H = {
-  onBeginVoyage() {},
-  onViewClassic() {},
-  onExitVoyage() {},
-  onPanelClosed() {},
-  onMuteToggle() {},
-  onDockConfirm() {},
-  onSailTo() {},
-  onBeatNext() {},
-  onBeatPrev() {},
-  onBeatEnd() {},
-  onViewAsList() {},
-  onEntryStart() {}
-};
+// The single UI -> app integration contract. Keep every cross-module action in
+// this list, then call through callHandler() so a missing or renamed hook can
+// never turn a label/button interaction into an uncaught runtime error.
+export const UI_HANDLER_CONTRACT = Object.freeze([
+  "onBeginVoyage",
+  "onViewClassic",
+  "onExitVoyage",
+  "onPanelClosed",
+  "onMuteToggle",
+  "onDockConfirm",
+  "onSailTo",
+  "onBeatNext",
+  "onBeatPrev",
+  "onBeatEnd",
+  "onViewAsList",
+  "onEntryStart",
+]);
+
+let uiHandlers = Object.fromEntries(UI_HANDLER_CONTRACT.map((name) => [name, () => {}]));
+
+function callHandler(name, ...args) {
+  const fn = uiHandlers[name];
+  if (typeof fn === "function") return fn(...args);
+  console.warn(`[ui] Missing handler: ${name}`);
+}
 
 let opts = { voyageSupported: false, reducedMotion: false, isMobile: false };
 
 const dom = {};
 const labelNodes = new Map();
+const labelSizes = new Map();
 let sailingTargetId = null; // island the visitor clicked to autopilot toward
 let sailingTargetTimer = null; // safety release if arrival is never observed
 
@@ -255,7 +267,6 @@ function navHTML() {
 
 function heroHTML() {
   const h = SITE.hero;
-  const first = h.epithets[0];
   const s = SITE.contact.socials;
   const socialLinks = s
     .map(
@@ -270,7 +281,6 @@ function heroHTML() {
       <div class="hero-inner">
         <h1 class="hero-name">${h.name}</h1>
         <p class="hero-identity">${h.identity}</p>
-        <p class="hero-epithet" aria-hidden="true"><span class="typed">${first}</span><span class="caret"></span></p>
         <div class="hero-cta">
           <button class="btn btn-primary hero-primary" id="cta-primary" type="button">
             <span class="cta-fill" aria-hidden="true"></span>
@@ -414,51 +424,8 @@ function renderClassic() {
 }
 
 /* ================================================================== */
-/* Hero behaviour: typed epithets, starfield, CTA states              */
+/* Hero behaviour: starfield and CTA states                           */
 /* ================================================================== */
-
-function startEpithets() {
-  const typed = $(".typed", dom.main);
-  if (!typed) return;
-  const list = SITE.hero.epithets;
-  if (opts.reducedMotion || prefersReducedMotion()) {
-    typed.textContent = list[0];
-    const caret = $(".caret", dom.main);
-    if (caret) caret.style.display = "none";
-    return;
-  }
-
-  let idx = 0;
-  let char = list[0].length; // start fully typed on the first string
-  let deleting = false;
-
-  function tick() {
-    const word = list[idx];
-    if (!deleting) {
-      char++;
-      typed.textContent = word.slice(0, char);
-      if (char >= word.length) {
-        deleting = true;
-        return schedule(1900);
-      }
-      return schedule(58 + Math.random() * 42);
-    }
-    char--;
-    typed.textContent = word.slice(0, char);
-    if (char <= 0) {
-      deleting = false;
-      idx = (idx + 1) % list.length;
-      return schedule(320);
-    }
-    return schedule(30);
-  }
-
-  let t = null;
-  function schedule(ms) {
-    t = window.setTimeout(tick, ms);
-  }
-  schedule(2100); // let the first epithet rest before it starts cycling
-}
 
 function buildStarfield() {
   const host = $(".hero-stars", dom.main);
@@ -686,7 +653,7 @@ function setupRelaunchButton() {
     return;
   }
   btn.hidden = false;
-  btn.addEventListener("click", () => H.onBeginVoyage());
+  btn.addEventListener("click", () => callHandler("onBeginVoyage"));
 
   const hero = document.getElementById("hero");
   if (!hero || !("IntersectionObserver" in window)) {
@@ -895,7 +862,7 @@ export function closePanel() {
     // Only clear if another panel has not opened in the meantime.
     if (!document.body.classList.contains("panel-open")) root.innerHTML = "";
   }, 380);
-  H.onPanelClosed();
+  callHandler("onPanelClosed");
 }
 
 /* ================================================================== */
@@ -979,16 +946,24 @@ export function enterVoyageUI() {
       : SITE.micro.controlsHintDesktop;
   }
 
-  // Accessibility: hide the page from the reader, expose the HUD.
-  dom.page.setAttribute("aria-hidden", "true");
-  dom.page.setAttribute("inert", "");
+  // Accessibility: expose and focus the voyage controls before hiding the
+  // outgoing entry surface. Focus never remains inside an aria-hidden subtree.
   measureCompass();
-  ["hud", "canvas", "labels", "joystick", "dockPrompt", "toast", "compass", "progress", "beatRoot"].forEach((k) => {
+  ["hud", "canvas", "labels", "joystick", "toast", "compass", "progress", "beatRoot"].forEach((k) => {
     if (dom[k]) dom[k].setAttribute("aria-hidden", "false");
   });
-
   const exit = document.getElementById("btn-exit-voyage");
-  if (exit) requestAnimationFrame(() => exit.focus({ preventScroll: true }));
+  if (exit) exit.focus({ preventScroll: true });
+  if (dom.entry) {
+    dom.entry.setAttribute("inert", "");
+    dom.entry.setAttribute("aria-hidden", "true");
+  }
+  dom.page.setAttribute("aria-hidden", "true");
+  dom.page.setAttribute("inert", "");
+  // The prompt is conditional, unlike the rest of the voyage HUD. Keep it out
+  // of the accessibility tree until proximity supplies real region copy.
+  hidePrompt();
+
 }
 
 export function exitVoyageUI() {
@@ -1000,19 +975,13 @@ export function exitVoyageUI() {
 
   dom.page.removeAttribute("aria-hidden");
   dom.page.removeAttribute("inert");
+  const brand = $(".nav-brand", dom.header);
+  if (brand) brand.focus({ preventScroll: true });
   ["hud", "canvas", "labels", "joystick", "dockPrompt", "toast", "compass", "progress", "beatRoot"].forEach((k) => {
     if (dom[k]) dom[k].setAttribute("aria-hidden", "true");
   });
 
   window.scrollTo({ top: 0, behavior: "auto" });
-  const brand = $(".nav-brand", dom.header);
-  if (brand) requestAnimationFrame(() => brand.focus({ preventScroll: true }));
-}
-
-function defaultDockLabel() {
-  return opts.isMobile || isCoarsePointer()
-    ? SITE.micro.dockMobile
-    : SITE.micro.dockDesktop;
 }
 
 export function updatePrompt(payload) {
@@ -1026,18 +995,22 @@ export function updatePrompt(payload) {
   clearSailingTarget();
   const key = $(".dock-key", el);
   const txt = $(".dock-text", el);
-  const label = payload.label || defaultDockLabel();
-  const m = /^Press\s+(\S+)\s+to\s+(.*)$/i.exec(label);
-  if (m) {
-    if (key) {
-      key.textContent = m[1];
-      key.hidden = false;
-    }
-    if (txt) txt.textContent = "to " + m[2];
-  } else {
-    if (key) key.hidden = true;
-    if (txt) txt.textContent = label;
+  const regionName = payload.regionName || "this region";
+  const suppliedLabel = String(payload.label || "").trim();
+  const touchPrompt = /^Tap\b/i.test(suppliedLabel) || opts.isMobile || isCoarsePointer();
+  const label = touchPrompt
+    ? `Tap to drop anchor at ${regionName}`
+    : `Press E to drop anchor at ${regionName}`;
+  if (key) {
+    key.textContent = "E";
+    key.hidden = touchPrompt;
+    key.setAttribute("aria-hidden", "true");
   }
+  // Always write the complete instruction before visibility changes. The key
+  // chip is decorative; the text remains independently meaningful in the DOM.
+  if (txt) txt.textContent = label;
+  el.setAttribute("aria-label", label);
+  if (payload.islandId) el.dataset.island = payload.islandId;
   // Clamp the island-anchored point so the pill is never clipped off an edge or
   // shoved under the top button row. On touch a CSS rule pins the prompt to a
   // thumb-reachable bottom slot instead (transform is overridden there), so this
@@ -1057,11 +1030,16 @@ export function updatePrompt(payload) {
   const yMax = Math.max(yMin, vh - padBottom + 0.3 * h);
   y = Math.max(yMin, Math.min(yMax, y));
   el.style.transform = `translate(calc(${x}px - 50%), calc(${y}px - 130%))`;
+  el.setAttribute("aria-hidden", "false");
   el.classList.add("is-visible");
 }
 
 function hidePrompt() {
-  if (dom.dockPrompt) dom.dockPrompt.classList.remove("is-visible");
+  if (!dom.dockPrompt) return;
+  dom.dockPrompt.classList.remove("is-visible");
+  dom.dockPrompt.setAttribute("aria-hidden", "true");
+  dom.dockPrompt.removeAttribute("aria-label");
+  delete dom.dockPrompt.dataset.island;
 }
 
 function numeralFor(id) {
@@ -1085,6 +1063,7 @@ export function updateIslandLabels(list) {
   const host = dom.labels;
   if (!host) return;
   const seen = new Set();
+  const candidates = [];
   (list || []).forEach((item) => {
     seen.add(item.id);
     let node = labelNodes.get(item.id);
@@ -1099,34 +1078,71 @@ export function updateIslandLabels(list) {
           '<span class="il-name"></span>' +
           '<span class="il-tag"></span>' +
         '</span>';
-      node.addEventListener("click", () => H.onSailTo(item.id));
+      node.addEventListener("click", () => callHandler("onSailTo", node.dataset.id));
       host.appendChild(node);
       labelNodes.set(item.id, node);
     }
-    if (item.visible) {
-      const numText = $(".il-num-text", node);
-      const nameEl = $(".il-name", node);
-      const tagEl = $(".il-tag", node);
-      const numeral = item.numeral || numeralFor(item.id);
-      const numStr = numeral ? "Chapter " + numeral : "";
-      if (numText.textContent !== numStr) numText.textContent = numStr;
-      if (nameEl.textContent !== item.name) nameEl.textContent = item.name || "";
-      if (tagEl.textContent !== item.tag) tagEl.textContent = item.tag || "";
-      node.classList.toggle("is-next", !!item.next);
-      node.classList.toggle("is-visited", !!item.visited);
-      // Keep the target label lit while autopilot carries us there, so the click
-      // visibly registered until we arrive.
-      node.classList.toggle("is-sailing", item.id === sailingTargetId && !item.visited);
-      node.setAttribute("aria-label", "Sail to " + (item.name || numeral || item.id));
-      // Position directly through transform so per-frame moves never jitter.
-      node.style.transform = `translate(calc(${item.x || 0}px - 50%), calc(${item.y || 0}px - 50%))`;
-      node.style.opacity = String(labelOpacity(item));
-      node.classList.add("is-visible");
-    } else {
-      node.classList.remove("is-visible");
-      node.style.opacity = "0";
-    }
+    const numText = $(".il-num-text", node);
+    const nameEl = $(".il-name", node);
+    const tagEl = $(".il-tag", node);
+    const numeral = item.numeral || numeralFor(item.id);
+    const numStr = numeral ? "Chapter " + numeral : "";
+    let copyChanged = false;
+    if (numText.textContent !== numStr) { numText.textContent = numStr; copyChanged = true; }
+    if (nameEl.textContent !== item.name) { nameEl.textContent = item.name || ""; copyChanged = true; }
+    if (tagEl.textContent !== item.tag) { tagEl.textContent = item.tag || ""; copyChanged = true; }
+    if (copyChanged) labelSizes.delete(item.id);
+    node.classList.toggle("is-next", !!item.next);
+    node.classList.toggle("is-visited", !!item.visited);
+    node.classList.toggle("is-sailing", item.id === sailingTargetId && !item.visited);
+    node.setAttribute("aria-label", "Set course for " + (item.name || numeral || item.id) + " region");
+    node.classList.remove("is-visible");
+    node.style.opacity = "0";
+    if (item.visible) candidates.push({ item, node });
   });
+
+  // Resolve exact label rectangles by priority. A quiet reserved rectangle keeps
+  // the top-center toast legible even during its enter/exit transition.
+  candidates.sort((a, b) => (b.item.priority || 0) - (a.item.priority || 0));
+  const placed = [];
+  const W = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const toastHalf = Math.min(280, W * 0.37);
+  const reserved = [{ left: W * 0.5 - toastHalf, right: W * 0.5 + toastHalf, top: 0, bottom: 112 }];
+  if (dom.toast && dom.toast.classList.contains("is-visible")) {
+    const r = dom.toast.getBoundingClientRect();
+    reserved.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+  }
+  const overlaps = (a, b, gap) => !(
+    a.right + gap <= b.left || a.left >= b.right + gap ||
+    a.bottom + gap <= b.top || a.top >= b.bottom + gap
+  );
+  const yOffsets = [0, 68, -68, 136, -136];
+  for (let i = 0; i < candidates.length && placed.length < 3; i++) {
+    const { item, node } = candidates[i];
+    let size = labelSizes.get(item.id);
+    if (!size) {
+      size = { w: Math.max(96, node.offsetWidth || 152), h: Math.max(44, node.offsetHeight || 66) };
+      labelSizes.set(item.id, size);
+    }
+    const { w, h } = size;
+    const x = Math.max(w * 0.5 + 12, Math.min(W - w * 0.5 - 12, item.x || 0));
+    let chosen = null;
+    for (const offset of yOffsets) {
+      const y = Math.max(h * 0.5 + 14, Math.min(viewportH - h * 0.5 - 48, (item.y || 0) + offset));
+      const rect = { left: x - w * 0.5, right: x + w * 0.5, top: y - h * 0.5, bottom: y + h * 0.5 };
+      if (reserved.some((other) => overlaps(rect, other, 10))) continue;
+      if (placed.some((other) => overlaps(rect, other, 10))) continue;
+      chosen = { x, y, rect };
+      break;
+    }
+    if (!chosen) continue;
+    placed.push(chosen.rect);
+    node.style.transform = `translate(calc(${chosen.x}px - 50%), calc(${chosen.y}px - 50%))`;
+    node.style.opacity = String(labelOpacity(item));
+    node.classList.add("is-visible");
+  }
+
   labelNodes.forEach((node, id) => {
     if (!seen.has(id)) {
       node.classList.remove("is-visible");
@@ -1209,12 +1225,13 @@ export function updateCompass(payload) {
       node.innerHTML =
         '<span class="ct-mark" aria-hidden="true"></span>' +
         '<span class="ct-label"><span class="ct-num"></span><span class="ct-name"></span></span>';
-      node.addEventListener("click", () => H.onSailTo(node.dataset.island));
+      node.addEventListener("click", () => callHandler("onSailTo", node.dataset.island));
       ticksHost.appendChild(node);
       compassNodes.set(isl.id, node);
     }
     const bearingDeg = (isl.bearing || 0) * 180 / Math.PI;
     const delta = normDeg(bearingDeg - headingDeg);
+    node.dataset.compassDelta = String(Math.abs(delta));
     const numeral = isl.numeral || numeralFor(isl.id);
     const numEl = $(".ct-num", node);
     const nameEl = $(".ct-name", node);
@@ -1222,7 +1239,7 @@ export function updateCompass(payload) {
     if (nameEl.textContent !== (isl.name || "")) nameEl.textContent = isl.name || "";
     node.classList.toggle("is-next", !!isl.next);
     node.classList.toggle("is-visited", !!isl.visited);
-    node.setAttribute("aria-label", "Sail to " + (isl.name || numeral || isl.id));
+    node.setAttribute("aria-label", "Set course for " + (isl.name || numeral || isl.id) + " region");
 
     if (Math.abs(delta) > half) {
       // Bearing is outside the visible arc: collect it for its edge so several
@@ -1252,6 +1269,47 @@ export function updateCompass(payload) {
 
   compassNodes.forEach((node, id) => {
     if (!seen.has(id)) node.classList.remove("is-visible");
+  });
+
+  resolveCompassCollisions();
+}
+
+// Keep the five chapter labels legible at wide breakpoints where their names
+// are all exposed. The active course wins, then in-arc markers nearest the ship
+// heading, then previously visited/edge hints. Lower-priority collisions yield
+// completely and never reveal a name on hover.
+function resolveCompassCollisions() {
+  const active = Array.from(compassNodes.values()).filter((node) => node.classList.contains("is-visible"));
+  active.forEach((node) => {
+    node.classList.remove("is-collided");
+    node.removeAttribute("aria-hidden");
+    node.tabIndex = 0;
+  });
+  active.sort((a, b) => {
+    const priority = (node) => {
+      const delta = Number(node.dataset.compassDelta);
+      return (node.classList.contains("is-next") ? 1000 : 0) +
+        (node.classList.contains("is-edge") ? 0 : 200) +
+        (node.classList.contains("is-visited") ? 20 : 0) -
+        Math.min(180, Number.isFinite(delta) ? delta : 180);
+    };
+    return priority(b) - priority(a);
+  });
+
+  const placed = [];
+  const gap = 8;
+  active.forEach((node) => {
+    const rect = node.getBoundingClientRect();
+    const collides = placed.some((other) => !(
+      rect.right + gap <= other.left || rect.left >= other.right + gap
+    ));
+    if (collides) {
+      node.classList.add("is-collided");
+      node.setAttribute("aria-hidden", "true");
+      node.tabIndex = -1;
+    } else {
+      placed.push(rect);
+    }
   });
 }
 
@@ -1449,10 +1507,10 @@ function wireBeatCard(card, islandId) {
   const next = $(".beat-next", card);
   const list = $(".beat-list", card);
   const sail = $(".beat-sail", card);
-  if (prev) prev.addEventListener("click", () => H.onBeatPrev());
-  if (next) next.addEventListener("click", () => H.onBeatNext());
-  if (list) list.addEventListener("click", () => H.onViewAsList(islandId));
-  if (sail) sail.addEventListener("click", () => H.onBeatEnd());
+  if (prev) prev.addEventListener("click", () => callHandler("onBeatPrev"));
+  if (next) next.addEventListener("click", () => callHandler("onBeatNext"));
+  if (list) list.addEventListener("click", () => callHandler("onViewAsList", islandId));
+  if (sail) sail.addEventListener("click", () => callHandler("onBeatEnd"));
 }
 
 function ensureBeatCard() {
@@ -1851,6 +1909,18 @@ function positionEntryShip(p) {
 // Start button labelled for this session and disabled until the chart completes.
 export function showEntryScroll(mode) {
   setEntryMode(mode);
+  if (dom.page && dom.page.contains(document.activeElement)) {
+    document.body.tabIndex = -1;
+    document.body.focus({ preventScroll: true });
+  }
+  if (dom.entry) {
+    dom.entry.removeAttribute("inert");
+    dom.entry.setAttribute("aria-hidden", "false");
+  }
+  if (dom.page) {
+    dom.page.setAttribute("inert", "");
+    dom.page.setAttribute("aria-hidden", "true");
+  }
   const path = dom.entryRoute;
   if (path && typeof path.getTotalLength === "function") {
     entryRouteLen = path.getTotalLength();
@@ -1904,6 +1974,14 @@ function openEntryScroll() {
 export function closeEntryScroll() {
   const shade = dom.scrollShade;
   if (!shade) return;
+  if (dom.entry && dom.entry.contains(document.activeElement)) {
+    document.body.tabIndex = -1;
+    document.body.focus({ preventScroll: true });
+  }
+  if (dom.entry) {
+    dom.entry.setAttribute("inert", "");
+    dom.entry.setAttribute("aria-hidden", "true");
+  }
   if (shade.__anim) {
     shade.__anim.cancel();
     shade.__anim = null;
@@ -1987,7 +2065,12 @@ export function isLoadingCta() {
 /* ================================================================== */
 
 export function initUI(handlers, options = {}) {
-  H = Object.assign({}, H, handlers || {});
+  const supplied = handlers || {};
+  uiHandlers = Object.fromEntries(UI_HANDLER_CONTRACT.map((name) => {
+    const fn = supplied[name];
+    if (typeof fn !== "function") console.warn(`[ui] Missing handler: ${name}`);
+    return [name, typeof fn === "function" ? fn : () => {}];
+  }));
   opts = Object.assign(opts, options || {});
 
   // Cache overlay DOM.
@@ -2026,7 +2109,6 @@ export function initUI(handlers, options = {}) {
 
   // Hero behaviour.
   configureHero();
-  startEpithets();
   buildStarfield();
 
   // Wire hero CTAs.
@@ -2036,11 +2118,11 @@ export function initUI(handlers, options = {}) {
   if (primary) {
     primary.addEventListener("click", () => {
       if (usesFallbackPrimary()) {
-        H.onViewClassic();
+        callHandler("onViewClassic");
         return;
       }
       if (ctaState !== "ready") showCtaLoading();
-      H.onBeginVoyage();
+      callHandler("onBeginVoyage");
     });
   }
   if (secondary) {
@@ -2048,9 +2130,9 @@ export function initUI(handlers, options = {}) {
       if (opts.voyageSupported && opts.reducedMotion) {
         // "Launch the voyage anyway" for reduced motion users.
         if (ctaState !== "ready") showCtaLoading();
-        H.onBeginVoyage();
+        callHandler("onBeginVoyage");
       } else {
-        H.onViewClassic();
+        callHandler("onViewClassic");
       }
     });
   }
@@ -2062,25 +2144,25 @@ export function initUI(handlers, options = {}) {
   // HUD buttons.
   const btnExit = document.getElementById("btn-exit-voyage");
   const btnMute = document.getElementById("btn-mute");
-  if (btnExit) btnExit.addEventListener("click", () => H.onExitVoyage());
+  if (btnExit) btnExit.addEventListener("click", () => callHandler("onExitVoyage"));
   if (btnMute) {
     btnMute.addEventListener("click", () => {
       const muted = btnMute.getAttribute("aria-pressed") !== "true";
       setMuteState(muted);
-      H.onMuteToggle(muted);
+      callHandler("onMuteToggle", muted);
     });
   }
 
   // Dock prompt tap (mobile docking).
   if (dom.dockPrompt) {
-    dom.dockPrompt.addEventListener("click", () => H.onDockConfirm());
+    dom.dockPrompt.addEventListener("click", () => callHandler("onDockConfirm"));
   }
 
   // Scroll map loader: the Start Voyage gate.
   if (dom.scrollStart) {
     dom.scrollStart.addEventListener("click", () => {
       if (dom.scrollStart.disabled) return;
-      H.onEntryStart();
+      callHandler("onEntryStart");
     });
   }
 
@@ -2119,7 +2201,8 @@ export function initUI(handlers, options = {}) {
     openCreditsModal,
     setMuteState,
     showToast,
-    enterVoyageUI
+    enterVoyageUI,
+    updatePrompt
   };
 
   // Reveal the page (kills any first paint flash).
